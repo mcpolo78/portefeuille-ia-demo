@@ -79,7 +79,7 @@ export function courbe(zone, points, { format, formatAxe, indexAuj, titre }) {
     el('line', { x1: marge.g, x2: l - marge.d, y1: Y(v), y2: Y(v), class: 'ligne-grille' }, axe);
     texte(axe, marge.g - 6, Y(v) + 3.5, formatAxe(v), { 'text-anchor': 'end' });
   }
-  const pasEtiquettes = l < 420 ? 6 : 3;
+  const pasEtiquettes = l < 280 ? 12 : l < 420 ? 6 : 3;
   points.forEach((p, i) => {
     if (i % pasEtiquettes === 0) texte(axe, X(i), h - 6, p.label, { 'text-anchor': 'middle' });
   });
@@ -142,7 +142,10 @@ export function anneau(zone, parts, { format, centre, clic }) {
     const y = ly0 + ligne * (legendeADroite ? 34 : 30);
     const g = el('g', {}, svg);
     el('rect', { x, y: y - 9, width: 10, height: 10, rx: 3, class: p.classe }, g);
-    texte(g, x + 16, y, p.label, { class: 'etiquette forte' });
+    // Libellé raccourci si la colonne de légende est trop étroite (le nom complet reste dans l'infobulle)
+    const place = legendeADroite ? l - x - 20 : l / 2 - 22;
+    const maxCar = Math.max(6, Math.floor(place / 6.4));
+    texte(g, x + 16, y, p.label.length > maxCar ? `${p.label.slice(0, maxCar - 1)}…` : p.label, { class: 'etiquette forte' });
     texte(g, x + 16, y + 13, `${format(p.valeur)} · ${Math.round((p.valeur / total) * 100)} %`, { class: 'etiquette' });
     if (clic) survol(g, `Voir les contrats ${p.label}`, () => clic(p));
   });

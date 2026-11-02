@@ -117,12 +117,18 @@ function markdown(texte) {
 }
 
 /* ---------- Conversation ---------- */
+const mouvementReduit = matchMedia('(prefers-reduced-motion: reduce)');
+const attendre = (ms) => new Promise((r) => setTimeout(r, mouvementReduit.matches ? 0 : ms));
+function defilerFil() {
+  fil.scrollTo({ top: fil.scrollHeight, behavior: mouvementReduit.matches ? 'auto' : 'smooth' });
+}
+
 function ajouterBulle(role, html, classe = '') {
   const div = document.createElement('div');
   div.className = `bulle ${role} ${classe}`.trim();
   div.innerHTML = html;
   fil.append(div);
-  fil.scrollTop = fil.scrollHeight;
+  defilerFil();
   return div;
 }
 
@@ -204,9 +210,11 @@ const LIBELLES_OUTILS = {
   priorites_recouvrement: 'applique les règles de recouvrement',
 };
 
-async function poser(question, secours) {
+async function poser(question, secours, origine = null) {
+  const etaitFerme = !assistantOuvert();
   ouvrirAssistant();
-  ajouterBulle('utilisateur', `<p>${echapper(question)}</p>`);
+  if (origine) await envolerQuestion(origine, question, etaitFerme);
+  ajouterBulle('utilisateur', `<p>${echapper(question)}</p>`, origine ? 'arrivee' : '');
   historique.push({ role: 'user', content: question });
   const bulle = ajouterBulle('assistant', '<ol class="etapes"></ol><p class="attente">Le modèle lit la question<span>.</span><span>.</span><span>.</span></p>');
   const etapes = bulle.querySelector('.etapes');
@@ -230,7 +238,7 @@ async function poser(question, secours) {
         li.className = 'en-cours';
         li.innerHTML = `<code>${echapper(d.outil)}</code> <span>${echapper(LIBELLES_OUTILS[d.outil] || '')}</span>`;
         etapes.append(li);
-        fil.scrollTop = fil.scrollHeight;
+        defilerFil();
       }
       if (type === 'trace') {
         const li = etapes.querySelector('li.en-cours');
@@ -266,7 +274,7 @@ async function poser(question, secours) {
     }
   } finally {
     occupe(false);
-    fil.scrollTop = fil.scrollHeight;
+    defilerFil();
   }
 }
 
@@ -328,12 +336,20 @@ document.addEventListener('click', (ev) => {
   if (lien) return ouvrirFiche(lien.dataset.contrat);
   const q = ev.target.closest('#fiche [data-question]');
   if (q) {
-    fiche.close();
+    fermerFiche();
     poser(q.dataset.question, null);
   }
 });
-$('#fermer-fiche').addEventListener('click', () => fiche.close());
-fiche.addEventListener('click', (ev) => { if (ev.target === fiche) fiche.close(); });
+// Fermeture animée de la fiche (fondu), y compris avec Échap
+function fermerFiche() {
+  if (!fiche.open || fiche.classList.contains('fermeture')) return;
+  if (mouvementReduit.matches) return fiche.close();
+  fiche.classList.add('fermeture');
+  fiche.addEventListener('animationend', () => { fiche.classList.remove('fermeture'); fiche.close(); }, { once: true });
+}
+$('#fermer-fiche').addEventListener('click', fermerFiche);
+fiche.addEventListener('click', (ev) => { if (ev.target === fiche) fermerFiche(); });
+fiche.addEventListener('cancel', (ev) => { ev.preventDefault(); fermerFiche(); });
 
 /* ---------- Onglets ---------- */
 const onglets = [...document.querySelectorAll('[role="tab"]')];
@@ -519,10 +535,12 @@ async function dessinerTableau() {
   dessinerTopRisques();
 }
 
-async function dessinerTopRisques() {
+async function dessinerTopRisques(forcer = false) {
+  // Le tableau ne dépend pas de la taille : on ne relit le serveur qu'au premier affichage ou quand les règles changent
+  if (!forcer && $('#g-risques table')) return;
   try {
     const res = await appelerOutilMcp('priorites_recouvrement', { limite: 5 });
-    $('#g-risques').innerHTML = '<table class="top-risques"><colgroup><col><col class="c-num"><col class="c-retard"></colgroup><thead><tr><th>Dossier</th><th class="num">Impayé</th><th class="num">Retard</th></tr></thead><tbody>' +
+    $('#g-risques').innerHTML = '<table class="top-risques"><colgroup><col><col class="c-num"><col class="c-retard"></colgroup><thead><tr><th>Dossier</th><th class="num">Impayé</th><th class="num">Jours</th></tr></thead><tbody>' +
       res.priorites.map((d) => `<tr><td class="client"><i class="point-niveau niveau-${classe(d.niveau)}" title="Niveau ${echapper(d.niveau)}"></i>${boutonContrat(d.id)}<span class="sous-ligne" title="${echapper(d.client)}">${echapper(d.client)}</span></td><td class="num">${compact(d.montant_impaye)}</td><td class="num">${d.jours_retard} j</td></tr>`).join('') +
       '</tbody></table>';
   } catch {
@@ -538,7 +556,15 @@ new ResizeObserver(() => {
   attenteRedessin = requestAnimationFrame(() => dessinerTableau());
 }).observe($('.grille-graphiques'));
 
-document.querySelectorAll('.demander').forEach((b) => b.addEventListener('click', () => poser(b.dataset.question, null)));
+document.querySelectorAll('.demander').forEach((b) => b.addEventListener('click', () => {
+  if (b.disabled) return;
+  // Retour visuel : le bouton rebondit, la carte s'illumine, puis la question part vers le fil
+  for (const [el, c] of [[b, 'envoye'], [b.closest('.carte'), 'questionnee']]) {
+    el.classList.remove(c); void el.offsetWidth; el.classList.add(c);
+    el.addEventListener('animationend', () => el.classList.remove(c), { once: true });
+  }
+  poser(b.dataset.question, null, b);
+}));
 
 /* ---------- Contrats ---------- */
 const filtres = { produit: $('#f-produit'), statut: $('#f-statut'), partenaire: $('#f-partenaire'), client: $('#f-client') };
@@ -587,7 +613,8 @@ async function rafraichirPriorites() {
   } catch (e) {
     $('#liste-priorites').innerHTML = `<tr><td colspan="7">${echapper(e.message)}</td></tr>`;
   }
-  if (vueActive === 'tableau') dessinerTopRisques();
+  if (vueActive === 'tableau') dessinerTopRisques(true);
+  else $('#g-risques').textContent = '';
 }
 
 /* ---------- Vue MCP ---------- */
@@ -599,23 +626,111 @@ async function afficherOutilsMcp() {
   } catch { /* liste facultative */ }
 }
 
-/* ---------- Panneau de l'assistant ---------- */
+/* ---------- Panneau de l'assistant (ouverture animée, largeur réglable) ---------- */
+const app = $('.app');
 const panneauAssistant = $('#assistant');
+const DUREE_PANNEAU = 450;
+const assistantOuvert = () => app.classList.contains('ia-ouverte');
+// Menu de gauche : réductible à la main ; réduit aussi automatiquement quand l'assistant s'ouvre
+let menuReduitAvantIa = false;
+function reduireMenu(reduit, enregistrer = true) {
+  app.classList.toggle('menu-reduit', reduit);
+  $('#reduire-menu').setAttribute('aria-expanded', String(!reduit));
+  $('#reduire-menu').setAttribute('aria-label', reduit ? 'Déplier le menu' : 'Réduire le menu');
+  $('#reduire-menu span').textContent = reduit ? 'Déplier le menu' : 'Réduire le menu';
+  if (enregistrer) ecrire('menu-reduit', reduit ? '1' : null);
+}
+reduireMenu(lire('menu-reduit') === '1', false);
+$('#reduire-menu').addEventListener('click', () => reduireMenu(!app.classList.contains('menu-reduit')));
+
 function ouvrirAssistant() {
-  if (!panneauAssistant.hidden) return;
-  panneauAssistant.hidden = false;
+  if (assistantOuvert()) return;
+  menuReduitAvantIa = app.classList.contains('menu-reduit');
+  if (innerWidth >= 1100) reduireMenu(true, false);
+  app.classList.add('ia-ouverte');
+  panneauAssistant.inert = false;
   $('#ouvrir-assistant').setAttribute('aria-expanded', 'true');
-  champ.focus();
+  setTimeout(() => champ.focus({ preventScroll: true }), mouvementReduit.matches ? 0 : DUREE_PANNEAU);
 }
 function fermerAssistant() {
-  panneauAssistant.hidden = true;
+  if (!assistantOuvert()) return;
+  app.classList.remove('ia-ouverte');
+  if (innerWidth >= 1100) reduireMenu(menuReduitAvantIa, false);
+  panneauAssistant.inert = true;
   $('#ouvrir-assistant').setAttribute('aria-expanded', 'false');
-  $('#ouvrir-assistant').focus();
+  $('#ouvrir-assistant').focus({ preventScroll: true });
 }
-$('#ouvrir-assistant').addEventListener('click', () => (panneauAssistant.hidden ? ouvrirAssistant() : fermerAssistant()));
+$('#ouvrir-assistant').addEventListener('click', () => (assistantOuvert() ? fermerAssistant() : ouvrirAssistant()));
 $('#fermer-assistant').addEventListener('click', fermerAssistant);
 document.addEventListener('keydown', (ev) => {
-  if (ev.key === 'Escape' && !panneauAssistant.hidden && !fiche.open) fermerAssistant();
+  if (ev.key === 'Escape' && assistantOuvert() && !fiche.open) fermerAssistant();
+});
+
+/** La question part du bouton cliqué et rejoint le fil de discussion avant d'y apparaître. */
+async function envolerQuestion(bouton, question, etaitFerme) {
+  if (mouvementReduit.matches) return;
+  if (etaitFerme) await attendre(DUREE_PANNEAU * 0.7);
+  const depart = bouton.getBoundingClientRect();
+  const cible = fil.getBoundingClientRect();
+  const dernier = fil.lastElementChild?.getBoundingClientRect();
+  const puce = document.createElement('div');
+  puce.className = 'question-volante';
+  puce.textContent = question;
+  document.body.append(puce);
+  const l = puce.offsetWidth;
+  const h = puce.offsetHeight;
+  puce.style.left = `${cible.right - l - 6}px`;
+  // La question atterrit là où sa bulle va apparaître (sous le dernier message)
+  const haut = Math.min(dernier ? dernier.bottom + 10 : cible.top, Math.min(cible.bottom, innerHeight) - h - 6);
+  puce.style.top = `${haut}px`;
+  const dx = depart.left + depart.width / 2 - (cible.right - l / 2 - 6);
+  const dy = depart.top + depart.height / 2 - (haut + h / 2);
+  const vol = puce.animate([
+    { transform: `translate(${dx}px, ${dy}px) scale(0.3)`, opacity: 0 },
+    { transform: `translate(${dx * 0.85}px, ${dy * 0.85 - 30}px) scale(0.8)`, opacity: 1, offset: 0.25 },
+    { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+  ], { duration: 700, easing: 'cubic-bezier(0.22, 0.8, 0.24, 1)' });
+  await vol.finished.catch(() => {});
+  puce.remove();
+}
+
+// Poignée : glisser (ou flèches gauche/droite) pour régler la largeur ; double-clic pour rétablir
+const poignee = $('#poignee-ia');
+const LARGEUR_MIN = 300;
+const largeurMax = () => Math.max(LARGEUR_MIN, Math.min(innerWidth * 0.55, innerWidth - 64 - 760));
+function reglerLargeur(px, enregistrer = true) {
+  if (px === null) {
+    app.style.removeProperty('--largeur-ia');
+    if (enregistrer) ecrire('largeur-ia', null);
+    return;
+  }
+  const w = Math.round(Math.min(largeurMax(), Math.max(LARGEUR_MIN, px)));
+  app.style.setProperty('--largeur-ia', `${w}px`);
+  poignee.setAttribute('aria-valuenow', String(w));
+  if (enregistrer) ecrire('largeur-ia', String(w));
+}
+const largeurSauvee = Number(lire('largeur-ia'));
+if (largeurSauvee) reglerLargeur(largeurSauvee, false);
+poignee.addEventListener('pointerdown', (ev) => {
+  ev.preventDefault();
+  poignee.setPointerCapture(ev.pointerId);
+  app.classList.add('redimension');
+  const deplacer = (e) => reglerLargeur(innerWidth - e.clientX, false);
+  const finir = (e) => {
+    poignee.removeEventListener('pointermove', deplacer);
+    app.classList.remove('redimension');
+    reglerLargeur(innerWidth - e.clientX);
+  };
+  poignee.addEventListener('pointermove', deplacer);
+  poignee.addEventListener('pointerup', finir, { once: true });
+  poignee.addEventListener('pointercancel', finir, { once: true });
+});
+poignee.addEventListener('dblclick', () => reglerLargeur(null));
+poignee.addEventListener('keydown', (ev) => {
+  const pas = ev.shiftKey ? 80 : 24;
+  const actuelle = panneauAssistant.getBoundingClientRect().width;
+  if (ev.key === 'ArrowLeft') { ev.preventDefault(); reglerLargeur(actuelle + pas); }
+  if (ev.key === 'ArrowRight') { ev.preventDefault(); reglerLargeur(actuelle - pas); }
 });
 
 /* ---------- Démarrage ---------- */

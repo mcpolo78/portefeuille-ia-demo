@@ -6,8 +6,8 @@
   <title>Copilote portefeuille · démo IA + MCP</title>
   <meta name="description" content="Démo : tableau de bord d'un portefeuille fictif de crédits et de leasings, avec un assistant IA (Ministral 14B, Mistral AI) qui interroge les données par un serveur MCP.">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="app.css?v=5">
-  <script type="module" src="app.js?v=5"></script>
+  <link rel="stylesheet" href="app.css?v=6">
+  <script type="module" src="app.js?v=6"></script>
 </head>
 <body>
   <div class="app">
@@ -16,12 +16,13 @@
         <span class="logo" aria-hidden="true">€</span>
         <span class="marque-texte">Copilote<br><small>portefeuille</small></span>
       </div>
-      <ul>
+      <ul id="liens-menu">
         <li><a href="#tableau" data-vue="tableau" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13h8V3H3zm10 8h8V11h-8zM3 21h8v-6H3zm10-18v6h8V3z"/></svg><span>Tableau de bord</span></a></li>
         <li><a href="#contrats" data-vue="contrats"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h9l5 5v15H6zm8 1.5V8h4.5M9 12h8M9 16h8"/></svg><span>Contrats</span></a></li>
         <li><a href="#recouvrement" data-vue="recouvrement"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l9 4v5c0 5-4 8-9 9-5-1-9-4-9-9V7zm-1 13h2v2h-2zm0-8h2v6h-2z"/></svg><span>Recouvrement</span></a></li>
         <li><a href="#mcp" data-vue="mcp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3v5H5v4a7 7 0 0 0 6 6.9V22h2v-3.1A7 7 0 0 0 19 12V8h-3V3h-2v5h-4V3z"/></svg><span>Serveur MCP</span></a></li>
       </ul>
+      <button type="button" class="reduire-menu" id="reduire-menu" aria-expanded="true" aria-controls="liens-menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"/></svg><span>Réduire le menu</span></button>
       <p class="menu-pied">Données <strong>fictives</strong><br>au 31/10/2026<br><a href="https://marcchesnel.com">Marc Chesnel</a></p>
     </nav>
 
@@ -46,27 +47,27 @@
         </div>
         <div class="grille-graphiques">
           <article class="carte graphique large" data-graphique="encours">
-            <header><h2>Évolution de l'encours</h2><span class="legende"><i class="pastille-couleur s1"></i>réalisé <i class="pastille-couleur s1 pointille"></i>projeté</span><button type="button" class="demander" title="Demander à l'IA" data-question="Comment l'encours a-t-il évolué sur 12 mois et que prévoir pour les 12 prochains ?" aria-label="Demander à l'IA">✦</button></header>
+            <header><h2>Évolution de l'encours</h2><span class="legende"><i class="pastille-couleur s1"></i>réalisé <i class="pastille-couleur s1 pointille"></i>projeté</span><button type="button" class="demander" title="Demander à l'IA" data-question="Comment l'encours a-t-il évolué sur 12 mois et que prévoir pour les 12 prochains ?" aria-label="Demander à l'IA"><span class="etoile" aria-hidden="true">✦</span>IA</button></header>
             <div class="zone" id="g-encours"></div>
           </article>
           <article class="carte graphique" data-graphique="produits">
-            <header><h2>Encours par produit</h2><button type="button" class="demander" title="Demander à l'IA" data-question="Analyse la répartition de l'encours par produit et le risque associé." aria-label="Demander à l'IA">✦</button></header>
+            <header><h2>Encours par produit</h2><button type="button" class="demander" title="Demander à l'IA" data-question="Analyse la répartition de l'encours par produit et le risque associé." aria-label="Demander à l'IA"><span class="etoile" aria-hidden="true">✦</span>IA</button></header>
             <div class="zone" id="g-produits"></div>
           </article>
           <article class="carte graphique" data-graphique="anciennete">
-            <header><h2>Ancienneté des impayés</h2><button type="button" class="demander" title="Demander à l'IA" data-question="Commente l'ancienneté des impayés et dis-moi quels dossiers traiter en premier." aria-label="Demander à l'IA">✦</button></header>
+            <header><h2>Ancienneté des impayés</h2><button type="button" class="demander" title="Demander à l'IA" data-question="Commente l'ancienneté des impayés et dis-moi quels dossiers traiter en premier." aria-label="Demander à l'IA"><span class="etoile" aria-hidden="true">✦</span>IA</button></header>
             <div class="zone" id="g-anciennete"></div>
           </article>
           <article class="carte graphique" data-graphique="encaissements">
-            <header><h2>Encaissements attendus</h2><span class="legende"><i class="pastille-couleur s1"></i>sains <i class="pastille-couleur s4"></i>à risque</span><button type="button" class="demander" title="Demander à l'IA" data-question="Quels encaissements attendre sur les 6 prochains mois et quelle part est à risque ?" aria-label="Demander à l'IA">✦</button></header>
+            <header><h2>Encaissements attendus</h2><span class="legende"><i class="pastille-couleur s1"></i>sains <i class="pastille-couleur s4"></i>à risque</span><button type="button" class="demander" title="Demander à l'IA" data-question="Quels encaissements attendre sur les 6 prochains mois et quelle part est à risque ?" aria-label="Demander à l'IA"><span class="etoile" aria-hidden="true">✦</span>IA</button></header>
             <div class="zone" id="g-encaissements"></div>
           </article>
           <article class="carte graphique" data-graphique="partenaires">
-            <header><h2>Encours par partenaire</h2><span class="legende"><i class="pastille-couleur s2"></i>sain <i class="pastille-couleur s4"></i>en retard</span><button type="button" class="demander" title="Demander à l'IA" data-question="Quel partenaire concentre le plus de risque et que recommandes-tu ?" aria-label="Demander à l'IA">✦</button></header>
+            <header><h2>Encours par partenaire</h2><span class="legende"><i class="pastille-couleur s2"></i>sain <i class="pastille-couleur s4"></i>en retard</span><button type="button" class="demander" title="Demander à l'IA" data-question="Quel partenaire concentre le plus de risque et que recommandes-tu ?" aria-label="Demander à l'IA"><span class="etoile" aria-hidden="true">✦</span>IA</button></header>
             <div class="zone" id="g-partenaires"></div>
           </article>
           <article class="carte graphique" data-graphique="risques">
-            <header><h2>Top 5 des dossiers à risque</h2><button type="button" class="demander" title="Demander à l'IA" data-question="Quels dossiers relancer en priorité ?" aria-label="Demander à l'IA">✦</button></header>
+            <header><h2>Top 5 des dossiers à risque</h2><button type="button" class="demander" title="Demander à l'IA" data-question="Quels dossiers relancer en priorité ?" aria-label="Demander à l'IA"><span class="etoile" aria-hidden="true">✦</span>IA</button></header>
             <div class="zone zone-table" id="g-risques"></div>
           </article>
         </div>
@@ -122,7 +123,8 @@
     </div>
 
     <!-- Assistant IA, panneau latéral -->
-    <aside class="panneau-ia" id="assistant" aria-label="Assistant IA" hidden>
+    <aside class="panneau-ia" id="assistant" aria-label="Assistant IA" inert>
+      <div class="poignee-ia" id="poignee-ia" role="separator" aria-orientation="vertical" aria-label="Largeur de l'assistant (flèches gauche et droite, double-clic pour rétablir)" tabindex="0"></div>
       <header class="assistant-entete">
         <div class="onglets" role="tablist">
           <button type="button" role="tab" id="onglet-conversation" aria-controls="panneau-conversation" aria-selected="true">Conversation</button>

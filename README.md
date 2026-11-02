@@ -9,7 +9,7 @@ Un assistant IA interroge un portefeuille **fictif** de crédits et de leasings 
 - **Étapes en direct** : `/api/assistant` renvoie un flux d'événements (Server-Sent Events) ; l'interface affiche chaque outil appelé pendant que le modèle travaille
 - **Fiches contrat** : chaque numéro CT-… est cliquable et ouvre la fiche avec son échéancier (lue directement par le serveur MCP)
 - **Règles de recouvrement configurables sans code** (`lib/regles.js`) : liste de règles JSON « si conditions → action + niveau » et poids du score, éditables dans l'interface, validées côté serveur (`/api/regles`), puis appliquées par l'assistant et par le serveur MCP (`_meta.regles` sur `tools/call`)
-- **Interface** HTML/CSS/JS sans framework, menu à 4 vues (tableau de bord, contrats, recouvrement, serveur MCP), assistant dans un panneau latéral ; si le modèle est indisponible, les questions d'exemple appellent directement l'outil MCP (mode secours)
+- **Interface** HTML/CSS/JS sans framework, menu à 4 vues (tableau de bord, contrats, recouvrement, serveur MCP), assistant dans une colonne latérale animée et redimensionnable (poignée, flèches du clavier, double-clic pour rétablir), menu réductible ; mise en page compacte pilotée par des requêtes de conteneur ; si le modèle est indisponible, les questions d'exemple appellent directement l'outil MCP (mode secours)
 - **Aucune dépendance npm**, Node 20 ou plus
 
 ## Lancer en local
