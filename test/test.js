@@ -83,6 +83,7 @@ after(() => fauxMistral.close());
 
 test('assistant : boucle d\'appels d\'outils et piste d\'audit', async () => {
   process.env.MISTRAL_API_KEY = 'cle-de-test';
+  process.env.MISTRAL_ESPACEMENT_MS = '0';
   const { default: handler } = await import('../api/assistant.js');
   const res = fauxRes();
   await handler({ method: 'POST', headers: {}, body: { messages: [{ role: 'user', content: 'Combien de contrats ?' }] } }, res);

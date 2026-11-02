@@ -39,26 +39,49 @@ function nettoyerHistorique(messages) {
   return propres;
 }
 
+// Offre gratuite Mistral : environ 1 requête toutes les 2 secondes. On espace les appels d'une même
+// question et on réessaie après une pause en cas de 429 (limite de débit) ou d'erreur passagère.
+const espacementMs = () => Number(process.env.MISTRAL_ESPACEMENT_MS ?? 2100);
+const PAUSES_REESSAI_MS = [2500, 5000];
+let dernierAppel = 0;
+const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+
 async function appelerMistral(messages) {
-  const r = await fetch(URL_MISTRAL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.MISTRAL_API_KEY}` },
-    body: JSON.stringify({
-      model: process.env.MISTRAL_MODEL || 'ministral-14b-latest',
-      messages,
-      tools: OUTILS_MISTRAL,
-      tool_choice: 'auto',
-      temperature: 0.2,
-      max_tokens: 900,
-    }),
-    signal: AbortSignal.timeout(25000),
-  });
-  if (!r.ok) {
+  for (let essai = 0; ; essai++) {
+    const attente = dernierAppel + espacementMs() - Date.now();
+    if (attente > 0) await pause(attente);
+    dernierAppel = Date.now();
+    let r;
+    try {
+      r = await fetch(URL_MISTRAL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.MISTRAL_API_KEY}` },
+        body: JSON.stringify({
+          model: process.env.MISTRAL_MODEL || 'ministral-14b-latest',
+          messages,
+          tools: OUTILS_MISTRAL,
+          tool_choice: 'auto',
+          temperature: 0.2,
+          max_tokens: 900,
+        }),
+        signal: AbortSignal.timeout(30000),
+      });
+    } catch (err) {
+      console.error(`[assistant] appel Mistral impossible (essai ${essai + 1}) : ${err.name} ${err.message}`);
+      if (essai < PAUSES_REESSAI_MS.length && err.name !== 'TimeoutError') { await pause(PAUSES_REESSAI_MS[essai]); continue; }
+      throw err;
+    }
+    if (r.ok) return r.json();
+    const detail = (await r.text().catch(() => '')).slice(0, 200);
+    console.error(`[assistant] Mistral ${r.status} (essai ${essai + 1}) : ${detail}`);
+    if ((r.status === 429 || r.status >= 500) && essai < PAUSES_REESSAI_MS.length) {
+      await pause(PAUSES_REESSAI_MS[essai]);
+      continue;
+    }
     const e = new Error(`Mistral ${r.status}`);
     e.statut = r.status;
     throw e;
   }
-  return r.json();
 }
 
 const tronquer = (obj) => {

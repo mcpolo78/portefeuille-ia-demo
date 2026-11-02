@@ -89,7 +89,7 @@ function markdown(texte) {
       const corps = bloc.filter((x) => !/^\s*\|[\s:|-]+\|\s*$/.test(x));
       const [tete, ...rangs] = corps;
       html.push('<div class="table-defile"><table><thead><tr>' + cellules(tete).map((c) => `<th>${enLigne(c)}</th>`).join('') +
-        '</tr></thead><tbody>' + rangs.map((r) => '<tr>' + cellules(r).map((c) => `<td>${enLigne(c)}</td>`).join('') + '</tr>').join('') +
+        '</tr></thead><tbody>' + rangs.map((r) => '<tr>' + cellules(r).map((c) => `<td${/^[-+~≈]?\s*[\d\s\u00a0\u202f.,]+\s*(€|k€|M€|%|j|jours|mois)?$/.test(c.replace(/\*/g, '')) ? ' class="num"' : ''}>${enLigne(c)}</td>`).join('') + '</tr>').join('') +
         '</tbody></table></div>');
       continue;
     }
@@ -175,10 +175,14 @@ function rendreResultat(res) {
   return html;
 }
 
-function occupe(oui) {
+function occupe(oui, origine = null) {
   boutonEnvoyer.disabled = oui;
   champ.disabled = oui;
-  document.querySelectorAll('#suggestions button').forEach((b) => { b.disabled = oui; });
+  document.querySelectorAll('#suggestions button, .demander, #fiche [data-question]').forEach((b) => {
+    b.disabled = oui;
+    b.classList.toggle('en-cours', oui && b === origine);
+    if (b.classList.contains('demander')) b.title = oui ? 'Une question est en cours : attendez la réponse' : "Demander à l'IA";
+  });
 }
 
 /* Lecture d'un flux Server-Sent Events renvoyé par /api/assistant */
@@ -210,16 +214,20 @@ const LIBELLES_OUTILS = {
   priorites_recouvrement: 'applique les règles de recouvrement',
 };
 
+let questionEnCours = false;
 async function poser(question, secours, origine = null) {
+  // Une seule question à la fois : les boutons IA restent désactivés jusqu'à la réponse
+  if (questionEnCours) return;
+  questionEnCours = true;
+  occupe(true, origine);
   const etaitFerme = !assistantOuvert();
   ouvrirAssistant();
-  if (origine) await envolerQuestion(origine, question, etaitFerme);
-  ajouterBulle('utilisateur', `<p>${echapper(question)}</p>`, origine ? 'arrivee' : '');
+  const bulleQuestion = ajouterBulle('utilisateur', `<p>${echapper(question)}</p>`, origine ? 'en-vol' : '');
+  if (origine) await envolerQuestion(origine, bulleQuestion, etaitFerme);
   historique.push({ role: 'user', content: question });
   const bulle = ajouterBulle('assistant', '<ol class="etapes"></ol><p class="attente">Le modèle lit la question<span>.</span><span>.</span><span>.</span></p>');
   const etapes = bulle.querySelector('.etapes');
   const attente = bulle.querySelector('.attente');
-  occupe(true);
   try {
     const r = await fetch('/api/assistant', {
       method: 'POST',
@@ -273,6 +281,7 @@ async function poser(question, secours, origine = null) {
       bulle.insertAdjacentHTML('beforeend', `<p>${echapper(e.message)} Essayez une des questions d'exemple : elles fonctionnent aussi sans le modèle.</p>`);
     }
   } finally {
+    questionEnCours = false;
     occupe(false);
     defilerFil();
   }
@@ -629,7 +638,7 @@ async function afficherOutilsMcp() {
 /* ---------- Panneau de l'assistant (ouverture animée, largeur réglable) ---------- */
 const app = $('.app');
 const panneauAssistant = $('#assistant');
-const DUREE_PANNEAU = 450;
+const DUREE_PANNEAU = 600;
 const assistantOuvert = () => app.classList.contains('ia-ouverte');
 // Menu de gauche : réductible à la main ; réduit aussi automatiquement quand l'assistant s'ouvre
 let menuReduitAvantIa = false;
@@ -667,36 +676,41 @@ document.addEventListener('keydown', (ev) => {
 });
 
 /** La question part du bouton cliqué et rejoint le fil de discussion avant d'y apparaître. */
-async function envolerQuestion(bouton, question, etaitFerme) {
-  if (mouvementReduit.matches) return;
-  if (etaitFerme) await attendre(DUREE_PANNEAU * 0.7);
+/**
+ * La question part du bouton cliqué et se pose exactement à la place de sa bulle dans le fil :
+ * le panneau finit de s'ouvrir, le fil défile, puis une copie de la bulle vole en arc jusqu'à elle.
+ */
+async function envolerQuestion(bouton, bulle, etaitFerme) {
+  const reveler = () => { bulle.classList.remove('en-vol'); bulle.classList.add('arrivee'); };
+  if (mouvementReduit.matches) return reveler();
+  if (etaitFerme) await attendre(DUREE_PANNEAU + 50);
+  fil.scrollTop = fil.scrollHeight;
+  await new Promise(requestAnimationFrame);
   const depart = bouton.getBoundingClientRect();
-  const cible = fil.getBoundingClientRect();
-  const dernier = fil.lastElementChild?.getBoundingClientRect();
+  const arrivee = bulle.getBoundingClientRect();
   const puce = document.createElement('div');
   puce.className = 'question-volante';
-  puce.textContent = question;
+  puce.textContent = bulle.textContent;
   document.body.append(puce);
-  const l = puce.offsetWidth;
-  const h = puce.offsetHeight;
-  puce.style.left = `${cible.right - l - 6}px`;
-  // La question atterrit là où sa bulle va apparaître (sous le dernier message)
-  const haut = Math.min(dernier ? dernier.bottom + 10 : cible.top, Math.min(cible.bottom, innerHeight) - h - 6);
-  puce.style.top = `${haut}px`;
-  const dx = depart.left + depart.width / 2 - (cible.right - l / 2 - 6);
-  const dy = depart.top + depart.height / 2 - (haut + h / 2);
+  puce.style.left = `${arrivee.left}px`;
+  puce.style.top = `${arrivee.top}px`;
+  puce.style.width = `${arrivee.width}px`;
+  const dx = depart.left + depart.width / 2 - (arrivee.left + arrivee.width / 2);
+  const dy = depart.top + depart.height / 2 - (arrivee.top + arrivee.height / 2);
+  const echelle = Math.max(0.15, depart.width / arrivee.width);
   const vol = puce.animate([
-    { transform: `translate(${dx}px, ${dy}px) scale(0.3)`, opacity: 0 },
-    { transform: `translate(${dx * 0.85}px, ${dy * 0.85 - 30}px) scale(0.8)`, opacity: 1, offset: 0.25 },
-    { transform: 'translate(0, 0) scale(1)', opacity: 1 },
-  ], { duration: 700, easing: 'cubic-bezier(0.22, 0.8, 0.24, 1)' });
+    { transform: `translate(${dx}px, ${dy}px) scale(${echelle})`, opacity: 0, filter: 'blur(2px)' },
+    { transform: `translate(${dx * 0.7}px, ${dy * 0.7 - 50}px) scale(${(echelle + 1) / 2})`, opacity: 1, filter: 'blur(0)', offset: 0.35 },
+    { transform: 'translate(0, 0) scale(1)', opacity: 1, filter: 'blur(0)' },
+  ], { duration: 950, easing: 'cubic-bezier(0.45, 0, 0.2, 1)' });
   await vol.finished.catch(() => {});
+  reveler();
   puce.remove();
 }
 
 // Poignée : glisser (ou flèches gauche/droite) pour régler la largeur ; double-clic pour rétablir
 const poignee = $('#poignee-ia');
-const LARGEUR_MIN = 300;
+const LARGEUR_MIN = 420;
 const largeurMax = () => Math.max(LARGEUR_MIN, Math.min(innerWidth * 0.55, innerWidth - 64 - 760));
 function reglerLargeur(px, enregistrer = true) {
   if (px === null) {

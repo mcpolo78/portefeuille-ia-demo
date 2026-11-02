@@ -342,7 +342,7 @@ dl.cles.fiche-cles { grid-template-columns: repeat(2, auto 1fr); gap: 0.2rem 1re
 }
 
 /* ---------- Panneau IA ouvert : trois colonnes (menu en icônes | tableau | assistant), animé ---------- */
-.app { --largeur-ia: min(27rem, 32vw); }
+.app { --largeur-ia: clamp(26rem, 34vw, 34rem); }
 .poignee-ia { display: none; }
 @media (min-width: 1100px) {
   .app.redimension { transition: none; cursor: col-resize; user-select: none; }
@@ -458,7 +458,7 @@ dl.cles.fiche-cles { grid-template-columns: repeat(2, auto 1fr); gap: 0.2rem 1re
 @keyframes arrivee-bulle { 0% { box-shadow: 0 0 0 0 light-dark(rgb(124 92 214 / 0.6), rgb(169 144 255 / 0.6)); } 100% { box-shadow: 0 0 0 10px transparent; } }
 
 /* ---------- Transitions générales ---------- */
-:root { --courbe: cubic-bezier(0.22, 0.8, 0.24, 1); --duree-panneau: 0.45s; }
+:root { --courbe: cubic-bezier(0.4, 0, 0.2, 1); --duree-panneau: 0.6s; }
 body, .menu, .carte, .kpi, .panneau-ia, .bulle, input, select, textarea, dialog {
   transition-property: background-color, color, border-color, box-shadow;
   transition-duration: 0.3s; transition-timing-function: ease;
@@ -523,3 +523,32 @@ dialog.fermeture::backdrop { animation: fondu 0.22s ease reverse forwards; }
 }
 #liste-priorites td:last-child { white-space: normal; }
 @media (min-width: 761px) { .app { overflow: clip; } }
+
+/* Tableaux dans le fil : toujours dans la largeur de la colonne, jamais de défilement horizontal */
+.bulle.assistant { max-width: 100%; }
+.bulle .table-defile { overflow-x: auto; }
+.bulle table { width: 100%; table-layout: auto; font-size: 0.8rem; }
+.bulle th, .bulle td { white-space: normal; overflow-wrap: break-word; hyphens: auto; padding: 0.3rem 0.35rem; vertical-align: top; }
+.bulle td.num, .bulle th.num { white-space: nowrap; }
+.bulle td [data-contrat] { white-space: nowrap; font-size: 0.74rem; }
+
+/* Question en vol : la vraie bulle attend, invisible, que sa copie la rejoigne */
+.bulle.en-vol { visibility: hidden; animation: none; }
+.question-volante { max-width: none; box-sizing: border-box; padding: 0.55rem 0.8rem; font-size: 14px; line-height: 1.45; transform-origin: center; will-change: transform, opacity; }
+.app.ia-ouverte .assistant-entete { animation: halo-entete 1.2s ease-out 0.3s; }
+@keyframes halo-entete { 0% { box-shadow: 0 0 0 0 transparent; } 30% { box-shadow: 0 6px 18px -8px var(--c3); } 100% { box-shadow: 0 0 0 0 transparent; } }
+
+/* Boutons IA désactivés pendant qu'une question est en cours */
+.demander:disabled, .bouton:disabled, .suggestions button:disabled { cursor: not-allowed; }
+.demander:disabled { animation: none; opacity: 0.45; filter: grayscale(0.6); transform: none; box-shadow: none; }
+.demander:disabled::after { animation: none; display: none; }
+.demander.en-cours:disabled { opacity: 1; filter: none; }
+.demander.en-cours .etoile { animation: tourne-ia 1s linear infinite; }
+@keyframes tourne-ia { to { transform: rotate(360deg); } }
+
+/* Barres de défilement discrètes (fil, listes, éditeur) */
+* { scrollbar-width: thin; scrollbar-color: light-dark(rgb(0 0 0 / 0.18), rgb(255 255 255 / 0.16)) transparent; }
+*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { border-radius: 6px; background: light-dark(rgb(0 0 0 / 0.18), rgb(255 255 255 / 0.16)); }
+*::-webkit-scrollbar-thumb:hover { background: light-dark(rgb(0 0 0 / 0.32), rgb(255 255 255 / 0.3)); }
