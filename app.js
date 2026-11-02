@@ -637,7 +637,7 @@ function reduireMenu(reduit, enregistrer = true) {
   app.classList.toggle('menu-reduit', reduit);
   $('#reduire-menu').setAttribute('aria-expanded', String(!reduit));
   $('#reduire-menu').setAttribute('aria-label', reduit ? 'Déplier le menu' : 'Réduire le menu');
-  $('#reduire-menu span').textContent = reduit ? 'Déplier le menu' : 'Réduire le menu';
+  $('#reduire-menu').title = reduit ? 'Déplier le menu' : 'Réduire le menu';
   if (enregistrer) ecrire('menu-reduit', reduit ? '1' : null);
 }
 reduireMenu(lire('menu-reduit') === '1', false);

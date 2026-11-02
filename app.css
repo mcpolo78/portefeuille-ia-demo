@@ -48,16 +48,21 @@ abbr { text-decoration: none; border-bottom: 1px dotted currentColor; cursor: he
 .app.menu-reduit { --largeur-menu: 64px; }
 .menu { position: relative; z-index: 5; }
 .menu a { position: relative; }
-:is(.marque-texte, .menu-pied, .menu a span, .reduire-menu span) { white-space: nowrap; transition: opacity 0.2s ease; }
+:is(.marque-texte, .menu-pied, .menu a span) { white-space: nowrap; transition: opacity 0.2s ease; }
 .reduire-menu {
-  display: flex; align-items: center; gap: 0.6rem; margin-top: auto; padding: 0.5rem 0.6rem; border: 0; border-radius: 8px;
-  background: none; color: var(--muted); font: inherit; font-size: 0.8rem; cursor: pointer; text-align: left;
+  display: grid; place-items: center; flex: none; width: 2rem; height: 2rem; margin-left: auto; padding: 0;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--muted); cursor: pointer;
 }
-.reduire-menu:hover { background: var(--surface-2); color: var(--text); }
-.reduire-menu svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: transform var(--duree-panneau) var(--courbe); }
-.reduire-menu + .menu-pied { margin-top: 0; }
-.app.menu-reduit .reduire-menu svg { transform: rotate(180deg); }
-.app.menu-reduit :is(.marque-texte, .menu-pied, .reduire-menu span) { opacity: 0; pointer-events: none; }
+.reduire-menu:hover, .reduire-menu:focus-visible { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.reduire-menu svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.reduire-menu .fleche { transform-origin: 14.25px 12px; transition: transform var(--duree-panneau) var(--courbe); }
+.app.menu-reduit .reduire-menu .fleche { transform: rotate(180deg); }
+/* Menu réduit : le bouton passe sous le logo */
+.marque { flex-wrap: wrap; row-gap: 0.6rem; }
+.app.menu-reduit .marque { flex-direction: column; align-items: center; padding: 0; }
+.app.menu-reduit .marque-texte { display: none; }
+.app.menu-reduit .reduire-menu { margin-left: 0; }
+.app.menu-reduit .menu-pied { opacity: 0; pointer-events: none; }
 /* Menu réduit : le nom de la page apparaît en infobulle au survol */
 .app.menu-reduit .menu a span {
   position: absolute; left: calc(100% + 12px); top: 50%; z-index: 30;
