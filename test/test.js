@@ -43,6 +43,8 @@ test('chaque outil s\'exécute sans erreur', () => {
     assert.ok(r.ok, `${o.name} : ${r.erreur}`);
   }
   assert.equal(executerOutil('detail_contrat', { id: 'CT-0000-0000' }).ok, false);
+  const enRetard = executerOutil('rechercher_contrats', { en_retard: true, limite: 20 }).resultat;
+  assert.equal(enRetard.nombre_trouves, CONTRATS.filter((c) => c.statut === 'impayé' || c.statut === 'contentieux').length);
 });
 
 test('MCP : initialize, tools/list, tools/call, erreurs', () => {
