@@ -1,6 +1,7 @@
-// Interface de la démo : conversation en direct avec l'assistant, piste d'audit, fiches contrat,
-// règles de recouvrement configurables sans code. Indicateurs et fiches lus directement par le serveur MCP.
-'use strict';
+// Interface de la démo : tableau de bord (graphiques SVG faits main), liste des contrats, recouvrement
+// et règles configurables sans code, assistant IA en panneau latéral avec étapes en direct et piste d'audit.
+// Toutes les données passent par le serveur MCP de la démo (/api/mcp).
+import { courbe, anneau, barres, barresH, sparkline, cacherInfobulle } from './graphiques.js';
 
 const $ = (sel) => document.querySelector(sel);
 const fil = $('#fil');
@@ -56,20 +57,6 @@ async function appelerOutilMcp(nom, args) {
   if (data.error) throw new Error(data.error.message);
   if (data.result.isError) throw new Error(data.result.content?.[0]?.text || 'Erreur outil');
   return data.result.structuredContent;
-}
-
-/* ---------- Indicateurs ---------- */
-async function chargerIndicateurs() {
-  try {
-    const s = await appelerOutilMcp('statistiques_portefeuille', {});
-    document.querySelectorAll('[data-kpi]').forEach((el) => {
-      const v = s[el.dataset.kpi];
-      el.textContent = el.dataset.format === 'euros' ? euros.format(v)
-        : el.dataset.format === 'pct' ? `${nombre.format(v)} %` : nombre.format(v);
-    });
-  } catch {
-    document.querySelectorAll('[data-kpi]').forEach((el) => { el.textContent = '–'; });
-  }
 }
 
 const classe = (t) => String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9-]/gi, '');
@@ -218,6 +205,7 @@ const LIBELLES_OUTILS = {
 };
 
 async function poser(question, secours) {
+  ouvrirAssistant();
   ajouterBulle('utilisateur', `<p>${echapper(question)}</p>`);
   historique.push({ role: 'user', content: question });
   const bulle = ajouterBulle('assistant', '<ol class="etapes"></ol><p class="attente">Le modèle lit la question<span>.</span><span>.</span><span>.</span></p>');
@@ -377,26 +365,8 @@ function afficherStatut(texte, type) {
   statutRegles.innerHTML = texte;
 }
 
-async function apercuRegles() {
-  try {
-    const res = await appelerOutilMcp('priorites_recouvrement', { limite: 20 });
-    const groupes = new Map();
-    for (const d of res.priorites) {
-      const cle = `${d.niveau}|${d.action_recommandee}`;
-      groupes.set(cle, (groupes.get(cle) || 0) + 1);
-    }
-    $('#apercu-regles').innerHTML = `<p class="petit muet">Effet sur les ${res.dossiers_en_retard} dossiers en retard :</p><table class="apercu"><tbody>` +
-      [...groupes].map(([cle, n]) => {
-        const [niveau, action] = cle.split('|');
-        return `<tr><td><span class="niveau niveau-${classe(niveau)}">${echapper(niveau)}</span></td><td>${echapper(action)}</td><td class="nb">${n}</td></tr>`;
-      }).join('') + '</tbody></table>';
-  } catch (e) {
-    $('#apercu-regles').innerHTML = `<p class="petit">${echapper(e.message)}</p>`;
-  }
-}
-
 function majEtatRegles() {
-  $('#regles-etat').textContent = reglesPerso ? 'perso' : 'défaut';
+  $('#regles-etat').textContent = reglesPerso ? 'règles personnalisées' : 'règles par défaut';
   $('#regles-etat').classList.toggle('perso', Boolean(reglesPerso));
 }
 
@@ -414,8 +384,8 @@ async function validerEtAppliquer() {
     reglesPerso = JSON.stringify(v.config) === JSON.stringify(reglesDefaut) ? null : v.config;
     ecrire('regles', reglesPerso ? JSON.stringify(reglesPerso) : null);
     majEtatRegles();
-    afficherStatut(reglesPerso ? 'Règles personnalisées appliquées. Demandez « Quels dossiers relancer en priorité ? » pour les voir à l\'œuvre.' : 'Règles par défaut appliquées.', 'ok');
-    apercuRegles();
+    afficherStatut(reglesPerso ? 'Règles personnalisées appliquées : la liste, le tableau de bord et l\'assistant les utilisent.' : 'Règles par défaut appliquées.', 'ok');
+    rafraichirPriorites();
   } catch {
     afficherStatut('Validation impossible pour le moment.', 'ko');
   }
@@ -437,7 +407,6 @@ async function initialiserRegles() {
   }
   editeur.value = JSON.stringify(reglesPerso || reglesDefaut, null, 2);
   majEtatRegles();
-  apercuRegles();
 }
 
 $('#appliquer-regles').addEventListener('click', validerEtAppliquer);
@@ -446,6 +415,210 @@ $('#reinitialiser-regles').addEventListener('click', () => {
   validerEtAppliquer();
 });
 
+
+/* ---------- Formats compacts pour les graphiques ---------- */
+const MOIS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+const libelleMois = (aaaamm) => {
+  const [a, m] = aaaamm.split('-').map(Number);
+  return `${MOIS[m - 1]} ${String(a).slice(2)}`;
+};
+function compact(v) {
+  if (Math.abs(v) >= 1e6) return `${nombre.format(Math.round(v / 1e4) / 100)} M€`;
+  if (Math.abs(v) >= 1e3) return `${nombre.format(Math.round(v / 100) / 10)} k€`;
+  return `${nombre.format(Math.round(v))} €`;
+}
+
+/* ---------- Navigation entre vues ---------- */
+const VUES = { tableau: 'Tableau de bord', contrats: 'Contrats', recouvrement: 'Recouvrement', mcp: 'Serveur MCP' };
+let vueActive = null;
+function afficherVue(nom) {
+  if (!VUES[nom]) nom = 'tableau';
+  vueActive = nom;
+  for (const v of Object.keys(VUES)) $(`#vue-${v}`).hidden = v !== nom;
+  document.querySelectorAll('.menu a').forEach((a) => {
+    if (a.dataset.vue === nom) a.setAttribute('aria-current', 'page');
+    else a.removeAttribute('aria-current');
+  });
+  $('#titre-vue').textContent = VUES[nom];
+  cacherInfobulle();
+  if (nom === 'tableau') dessinerTableau();
+  if (nom === 'contrats') afficherContrats();
+  if (nom === 'recouvrement') rafraichirPriorites();
+}
+window.addEventListener('hashchange', () => afficherVue(location.hash.slice(1)));
+
+/* ---------- Données (via MCP) ---------- */
+let donneesTableau = null;
+let tousContrats = null;
+async function chargerTableau() {
+  donneesTableau = await appelerOutilMcp('tableau_de_bord', {});
+  return donneesTableau;
+}
+async function chargerContrats() {
+  if (!tousContrats) tousContrats = (await appelerOutilMcp('rechercher_contrats', { limite: 50 })).contrats;
+  return tousContrats;
+}
+
+/* ---------- Tableau de bord ---------- */
+const CLASSES_PRODUITS = { 'Crédit-bail': 's1', LOA: 's2', LLD: 's3', 'Crédit amortissable': 's4' };
+
+function remplirIndicateurs(t) {
+  const k = t.indicateurs;
+  $('#kpi-encours').textContent = euros.format(k.encours);
+  const v = k.encours_variation_12_mois_pct;
+  $('#kpi-encours-var').innerHTML = `<span class="${v >= 0 ? 'hausse' : 'baisse'}">${v >= 0 ? '▲' : '▼'} ${nombre.format(Math.abs(v))} %</span> sur 1 an`;
+  $('#kpi-vivants').textContent = k.contrats_vivants;
+  $('#kpi-retard').textContent = `${nombre.format(k.taux_contrats_en_retard_pct)} %`;
+  $('#kpi-retard-pied').textContent = `${k.contrats_en_retard} dossiers sur ${k.contrats_vivants}`;
+  $('#kpi-impaye').textContent = euros.format(k.montant_impaye);
+  $('#kpi-loyers').textContent = euros.format(k.loyers_attendus_mois_prochain);
+  const risque = t.encaissements_6_mois[0].a_risque;
+  $('#kpi-loyers-pied').textContent = `${compact(risque)} à risque`;
+  const passe = t.serie_mensuelle.filter((p) => !p.projete);
+  sparkline($('#spark-encours'), passe.map((p) => p.encours));
+  sparkline($('#spark-vivants'), passe.map((p) => p.vivants));
+  sparkline($('#spark-loyers'), passe.map((p) => p.loyers));
+}
+
+async function dessinerTableau() {
+  if (!donneesTableau) {
+    try { await chargerTableau(); } catch { return; }
+  }
+  const t = donneesTableau;
+  remplirIndicateurs(t);
+
+  const serie = t.serie_mensuelle;
+  courbe($('#g-encours'), serie.map((p) => ({ label: libelleMois(p.mois), y: p.encours, projete: p.projete })), {
+    format: (v) => euros.format(v), formatAxe: compact, indexAuj: serie.findIndex((p) => !p.projete && serie[serie.indexOf(p) + 1]?.projete),
+    titre: "Évolution de l'encours sur 24 mois",
+  });
+
+  const produits = t.par_produit.filter((p) => p.encours > 0);
+  anneau($('#g-produits'), produits.map((p) => ({ label: p.produit, valeur: p.encours, classe: CLASSES_PRODUITS[p.produit] })), {
+    format: compact,
+    centre: { valeur: compact(t.indicateurs.encours), label: 'encours' },
+    clic: (p) => filtrerContrats({ produit: p.label, statut: 'vivants' }),
+  });
+
+  barres($('#g-anciennete'), t.anciennete_impayes.map((a) => ({
+    label: a.tranche, valeurs: [{ v: a.montant }], etiquette: a.dossiers ? `${a.dossiers} dossier${a.dossiers > 1 ? 's' : ''}` : '',
+    infobulle: `<strong>${a.tranche}</strong> · ${euros.format(a.montant)} sur ${a.dossiers} dossier(s)`, tranche: a,
+  })), { format: euros.format, formatAxe: compact, classeDe: (i) => `anc-${i}`, clic: () => afficherVueHash('recouvrement') });
+
+  barres($('#g-encaissements'), t.encaissements_6_mois.map((m) => ({
+    label: libelleMois(m.mois), valeurs: [{ v: m.sains, classe: 's1' }, { v: m.a_risque, classe: 's4' }],
+    infobulle: `<strong>${libelleMois(m.mois)}</strong> · ${euros.format(m.sains + m.a_risque)}<br>dont ${euros.format(m.a_risque)} sur des contrats en retard`,
+  })), { format: euros.format, formatAxe: compact });
+
+  barresH($('#g-partenaires'), t.par_partenaire.map((p) => ({
+    label: p.partenaire, valeurs: [{ v: p.encours - p.encours_en_retard, classe: 's2' }, { v: p.encours_en_retard, classe: 's4' }],
+    infobulle: `<strong>${p.partenaire}</strong> · ${euros.format(p.encours)} sur ${p.contrats} contrats<br>dont ${euros.format(p.encours_en_retard)} en retard (${Math.round((p.encours_en_retard / (p.encours || 1)) * 100)} %)`,
+    partenaire: p.partenaire,
+  })), { format: compact, clic: (it) => filtrerContrats({ partenaire: it.partenaire, statut: 'vivants' }) });
+
+  dessinerTopRisques();
+}
+
+async function dessinerTopRisques() {
+  try {
+    const res = await appelerOutilMcp('priorites_recouvrement', { limite: 5 });
+    $('#g-risques').innerHTML = '<table class="top-risques"><colgroup><col><col class="c-num"><col class="c-retard"></colgroup><thead><tr><th>Dossier</th><th class="num">Impayé</th><th class="num">Retard</th></tr></thead><tbody>' +
+      res.priorites.map((d) => `<tr><td class="client"><i class="point-niveau niveau-${classe(d.niveau)}" title="Niveau ${echapper(d.niveau)}"></i>${boutonContrat(d.id)}<span class="sous-ligne" title="${echapper(d.client)}">${echapper(d.client)}</span></td><td class="num">${euros.format(d.montant_impaye)}</td><td class="num">${d.jours_retard} j</td></tr>`).join('') +
+      '</tbody></table>';
+  } catch {
+    $('#g-risques').textContent = 'Indisponible.';
+  }
+}
+
+// Redessine les graphiques quand leur zone change de taille (fenêtre, panneau)
+let attenteRedessin = null;
+new ResizeObserver(() => {
+  if (vueActive !== 'tableau' || !donneesTableau) return;
+  cancelAnimationFrame(attenteRedessin);
+  attenteRedessin = requestAnimationFrame(() => dessinerTableau());
+}).observe($('.grille-graphiques'));
+
+document.querySelectorAll('.demander').forEach((b) => b.addEventListener('click', () => poser(b.dataset.question, null)));
+
+/* ---------- Contrats ---------- */
+const filtres = { produit: $('#f-produit'), statut: $('#f-statut'), partenaire: $('#f-partenaire'), client: $('#f-client') };
+function afficherVueHash(nom) {
+  if (location.hash.slice(1) === nom) afficherVue(nom);
+  else location.hash = nom;
+}
+function filtrerContrats(f) {
+  filtres.produit.value = f.produit || '';
+  filtres.statut.value = f.statut || '';
+  filtres.partenaire.value = f.partenaire || '';
+  filtres.client.value = '';
+  afficherVueHash('contrats');
+}
+async function afficherContrats() {
+  let liste;
+  try { liste = await chargerContrats(); } catch { return; }
+  if (filtres.partenaire.options.length === 1) {
+    for (const p of [...new Set(liste.map((c) => c.partenaire))].sort()) filtres.partenaire.add(new Option(p, p));
+  }
+  const f = Object.fromEntries(Object.entries(filtres).map(([k, e]) => [k, e.value.trim().toLowerCase()]));
+  const visibles = liste.filter((c) =>
+    (!f.produit || c.produit.toLowerCase() === f.produit) &&
+    (!f.partenaire || c.partenaire.toLowerCase() === f.partenaire) &&
+    (!f.client || c.client.toLowerCase().includes(f.client)) &&
+    (!f.statut || (f.statut === 'vivants' ? c.statut !== 'soldé' : f.statut === 'retard' ? c.jours_retard > 0 : c.statut === f.statut)))
+    .sort((a, b) => b.capital_restant_du - a.capital_restant_du);
+  $('#f-compte').textContent = `${visibles.length} contrat${visibles.length > 1 ? 's' : ''} sur ${liste.length}`;
+  $('#liste-contrats').innerHTML = visibles.map((c) => `<tr>
+    <td>${boutonContrat(c.id)}</td><td>${echapper(c.client)}</td><td>${echapper(c.produit)}</td><td>${echapper(c.partenaire)}</td>
+    <td class="num">${euros.format(c.capital_restant_du)}</td><td class="num">${euros.format(c.loyer_mensuel)}</td>
+    <td class="num">${c.montant_impaye ? euros.format(c.montant_impaye) : '–'}</td>
+    <td><span class="statut statut-${classe(c.statut)}">${echapper(c.statut)}</span></td><td>${dateFr(c.date_fin)}</td></tr>`).join('');
+}
+Object.values(filtres).forEach((e) => e.addEventListener('input', afficherContrats));
+$('#f-effacer').addEventListener('click', () => filtrerContrats({}));
+
+/* ---------- Recouvrement ---------- */
+async function rafraichirPriorites() {
+  try {
+    const res = await appelerOutilMcp('priorites_recouvrement', { limite: 20 });
+    $('#liste-priorites').innerHTML = res.priorites.map((d) => `<tr>
+      <td>${boutonContrat(d.id)}</td><td>${echapper(d.client)}</td><td class="num">${euros.format(d.montant_impaye)}</td>
+      <td class="num">${d.jours_retard} j</td><td class="num">${d.score}</td>
+      <td><span class="niveau niveau-${classe(d.niveau)}">${echapper(d.niveau)}</span></td><td>${echapper(d.action_recommandee)}</td></tr>`).join('');
+  } catch (e) {
+    $('#liste-priorites').innerHTML = `<tr><td colspan="7">${echapper(e.message)}</td></tr>`;
+  }
+  if (vueActive === 'tableau') dessinerTopRisques();
+}
+
+/* ---------- Vue MCP ---------- */
+async function afficherOutilsMcp() {
+  try {
+    const r = await fetch('/api/mcp', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: ++idRpc, method: 'tools/list' }) });
+    const { result } = await r.json();
+    $('#outils-mcp').innerHTML = result.tools.map((o) => `<li><code>${echapper(o.name)}</code> : ${echapper(o.description.split('.')[0])}.</li>`).join('');
+  } catch { /* liste facultative */ }
+}
+
+/* ---------- Panneau de l'assistant ---------- */
+const panneauAssistant = $('#assistant');
+function ouvrirAssistant() {
+  if (!panneauAssistant.hidden) return;
+  panneauAssistant.hidden = false;
+  $('#ouvrir-assistant').setAttribute('aria-expanded', 'true');
+  champ.focus();
+}
+function fermerAssistant() {
+  panneauAssistant.hidden = true;
+  $('#ouvrir-assistant').setAttribute('aria-expanded', 'false');
+  $('#ouvrir-assistant').focus();
+}
+$('#ouvrir-assistant').addEventListener('click', () => (panneauAssistant.hidden ? ouvrirAssistant() : fermerAssistant()));
+$('#fermer-assistant').addEventListener('click', fermerAssistant);
+document.addEventListener('keydown', (ev) => {
+  if (ev.key === 'Escape' && !panneauAssistant.hidden && !fiche.open) fermerAssistant();
+});
+
+/* ---------- Démarrage ---------- */
 $('#commande-mcp').textContent = `claude mcp add --transport http portefeuille ${location.origin}/api/mcp`;
-chargerIndicateurs();
-initialiserRegles();
+afficherOutilsMcp();
+initialiserRegles().then(() => afficherVue(location.hash.slice(1)));

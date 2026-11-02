@@ -35,7 +35,7 @@ test('portefeuille déterministe et identifiants uniques', () => {
 test('chaque outil s\'exécute sans erreur', () => {
   const id = CONTRATS.find((c) => c.statut === 'impayé').id;
   const args = {
-    statistiques_portefeuille: {}, rechercher_contrats: { statut: 'impayé' }, detail_contrat: { id },
+    tableau_de_bord: {}, statistiques_portefeuille: {}, rechercher_contrats: { statut: 'impayé' }, detail_contrat: { id },
     echeancier_contrat: { id, nombre: 6 }, simuler_avenant: { id, nouvelle_duree_restante_mois: 24 }, priorites_recouvrement: { limite: 3 },
   };
   for (const o of OUTILS) {
@@ -52,7 +52,7 @@ test('MCP : initialize, tools/list, tools/call, erreurs', () => {
   assert.equal(init.result.protocolVersion, '2025-06-18');
   assert.equal(traiterMessage({ jsonrpc: '2.0', method: 'notifications/initialized' }), null);
   const liste = traiterMessage({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
-  assert.equal(liste.result.tools.length, 6);
+  assert.equal(liste.result.tools.length, 7);
   const appel = traiterMessage({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'statistiques_portefeuille', arguments: {} } });
   assert.equal(appel.result.isError, false);
   assert.equal(appel.result.structuredContent.nombre_contrats, 40);

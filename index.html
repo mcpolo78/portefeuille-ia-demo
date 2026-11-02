@@ -4,102 +4,162 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Copilote portefeuille · démo IA + MCP</title>
-  <meta name="description" content="Démo : un assistant IA (Ministral 14B, Mistral AI) interroge un portefeuille fictif de crédits et de leasings via un serveur MCP, avec piste d'audit de chaque appel d'outil.">
+  <meta name="description" content="Démo : tableau de bord d'un portefeuille fictif de crédits et de leasings, avec un assistant IA (Ministral 14B, Mistral AI) qui interroge les données par un serveur MCP.">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="app.css?v=2">
-  <script src="app.js?v=2" defer></script>
+  <link rel="stylesheet" href="app.css?v=4">
+  <script type="module" src="app.js?v=4"></script>
 </head>
 <body>
-  <header class="entete">
-    <div class="entete-titre">
-      <span class="logo" aria-hidden="true">€</span>
-      <div>
-        <h1>Copilote portefeuille</h1>
-        <p class="sous-titre">Un assistant IA qui interroge un portefeuille de crédits et de leasings par un serveur <abbr title="Model Context Protocol">MCP</abbr>.</p>
+  <div class="app">
+    <nav class="menu" aria-label="Navigation principale">
+      <div class="marque">
+        <span class="logo" aria-hidden="true">€</span>
+        <span class="marque-texte">Copilote<br><small>portefeuille</small></span>
       </div>
-    </div>
-    <div class="entete-actions">
-      <span class="pastille" id="etat-modele" title="Modèle utilisé">Ministral 14B</span>
-      <button type="button" class="bouton-theme" id="bouton-theme" aria-label="Changer de thème">◐</button>
-    </div>
-  </header>
+      <ul>
+        <li><a href="#tableau" data-vue="tableau" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13h8V3H3zm10 8h8V11h-8zM3 21h8v-6H3zm10-18v6h8V3z"/></svg><span>Tableau de bord</span></a></li>
+        <li><a href="#contrats" data-vue="contrats"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h9l5 5v15H6zm8 1.5V8h4.5M9 12h8M9 16h8"/></svg><span>Contrats</span></a></li>
+        <li><a href="#recouvrement" data-vue="recouvrement"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l9 4v5c0 5-4 8-9 9-5-1-9-4-9-9V7zm-1 13h2v2h-2zm0-8h2v6h-2z"/></svg><span>Recouvrement</span></a></li>
+        <li><a href="#mcp" data-vue="mcp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3v5H5v4a7 7 0 0 0 6 6.9V22h2v-3.1A7 7 0 0 0 19 12V8h-3V3h-2v5h-4V3z"/></svg><span>Serveur MCP</span></a></li>
+      </ul>
+      <p class="menu-pied">Données <strong>fictives</strong><br>au 31/10/2026<br><a href="https://marcchesnel.com">Marc Chesnel</a></p>
+    </nav>
 
-  <p class="bandeau">Données <strong>fictives</strong> (40 contrats, clients inventés), arrêtées au <strong>31/10/2026</strong>. Projet de démonstration par <a href="https://marcchesnel.com">Marc Chesnel</a>.</p>
-
-  <section class="kpis" aria-label="Indicateurs du portefeuille">
-    <div class="kpi"><span class="kpi-label">Encours</span><span class="kpi-valeur" data-kpi="encours_total" data-format="euros">…</span></div>
-    <div class="kpi"><span class="kpi-label">Contrats vivants</span><span class="kpi-valeur" data-kpi="contrats_vivants">…</span></div>
-    <div class="kpi"><span class="kpi-label">Contrats en retard</span><span class="kpi-valeur" data-kpi="taux_contrats_en_retard_pct" data-format="pct">…</span></div>
-    <div class="kpi alerte"><span class="kpi-label">Montant impayé</span><span class="kpi-valeur" data-kpi="montant_impaye_total" data-format="euros">…</span></div>
-  </section>
-
-  <main class="grille">
-    <section class="carte chat" aria-label="Conversation">
-      <div class="fil" id="fil" aria-live="polite">
-        <div class="bulle assistant">
-          <p>Bonjour ! Je suis branché sur le portefeuille par six outils MCP : statistiques, recherche, fiche contrat, échéancier, simulation d'avenant et priorités de recouvrement. Posez une question, ou choisissez un exemple. Cliquez sur un numéro de contrat pour ouvrir sa fiche.</p>
+    <div class="principal">
+      <header class="barre">
+        <h1 id="titre-vue">Tableau de bord</h1>
+        <div class="barre-actions">
+          <span class="pastille" title="Modèle utilisé par l'assistant">Ministral 14B</span>
+          <button type="button" class="bouton-icone" id="bouton-theme" aria-label="Changer de thème">◐</button>
+          <button type="button" class="bouton" id="ouvrir-assistant" aria-controls="assistant" aria-expanded="false">✦ Demander à l'IA</button>
         </div>
-      </div>
-      <div class="suggestions" id="suggestions">
-        <button type="button" data-outil="priorites_recouvrement" data-args='{"limite":5}'>Quels dossiers relancer en priorité ?</button>
-        <button type="button" data-outil="statistiques_portefeuille" data-args='{}'>Résume la santé du portefeuille</button>
-        <button type="button" data-outil="rechercher_contrats" data-args='{"produit":"LLD","tri":"capital_restant_du","limite":5}'>Les 5 plus gros encours en LLD</button>
-        <button type="button" data-outil="simuler_avenant" data-args='{"id":"CT-2024-1121","nouvelle_duree_restante_mois":24}'>Si on étale CT-2024-1121 sur 24 mois ?</button>
-      </div>
-      <form class="saisie" id="formulaire">
-        <label class="masque" for="question">Votre question</label>
-        <textarea id="question" rows="2" maxlength="600" placeholder="Ex. : quels contrats Agri Matériel 78 sont en retard ?" required></textarea>
-        <button type="submit" id="envoyer">Envoyer</button>
-      </form>
-    </section>
+      </header>
 
-    <aside class="carte panneau" aria-label="Piste d'audit et règles">
-      <div class="onglets" role="tablist">
-        <button type="button" role="tab" id="onglet-audit" aria-controls="panneau-audit" aria-selected="true">Piste d'audit <span class="compteur" id="audit-compte">0</span></button>
-        <button type="button" role="tab" id="onglet-regles" aria-controls="panneau-regles" aria-selected="false" tabindex="-1">Règles <span class="compteur" id="regles-etat">défaut</span></button>
-      </div>
+      <!-- Tableau de bord -->
+      <section class="vue vue-tableau" id="vue-tableau" aria-labelledby="titre-vue">
+        <div class="kpis" id="kpis">
+          <div class="kpi"><span class="kpi-label">Encours</span><span class="kpi-valeur" id="kpi-encours">…</span><span class="kpi-pied" id="kpi-encours-var"></span><svg class="sparkline" id="spark-encours" aria-hidden="true"></svg></div>
+          <div class="kpi"><span class="kpi-label">Contrats vivants</span><span class="kpi-valeur" id="kpi-vivants">…</span><span class="kpi-pied">sur 40 contrats</span><svg class="sparkline" id="spark-vivants" aria-hidden="true"></svg></div>
+          <div class="kpi"><span class="kpi-label">Contrats en retard</span><span class="kpi-valeur alerte" id="kpi-retard">…</span><span class="kpi-pied" id="kpi-retard-pied"></span></div>
+          <div class="kpi"><span class="kpi-label">Montant impayé</span><span class="kpi-valeur alerte" id="kpi-impaye">…</span><span class="kpi-pied">échéances non réglées</span></div>
+          <div class="kpi"><span class="kpi-label">Loyers de novembre</span><span class="kpi-valeur" id="kpi-loyers">…</span><span class="kpi-pied" id="kpi-loyers-pied"></span><svg class="sparkline" id="spark-loyers" aria-hidden="true"></svg></div>
+        </div>
+        <div class="grille-graphiques">
+          <article class="carte graphique large" data-graphique="encours">
+            <header><h2>Évolution de l'encours</h2><span class="legende"><i class="pastille-couleur s1"></i>réalisé <i class="pastille-couleur s1 pointille"></i>projeté</span><button type="button" class="demander" data-question="Comment l'encours a-t-il évolué sur 12 mois et que prévoir pour les 12 prochains ?" aria-label="Demander à l'IA">✦</button></header>
+            <div class="zone" id="g-encours"></div>
+          </article>
+          <article class="carte graphique" data-graphique="produits">
+            <header><h2>Encours par produit</h2><button type="button" class="demander" data-question="Analyse la répartition de l'encours par produit et le risque associé." aria-label="Demander à l'IA">✦</button></header>
+            <div class="zone" id="g-produits"></div>
+          </article>
+          <article class="carte graphique" data-graphique="anciennete">
+            <header><h2>Ancienneté des impayés</h2><button type="button" class="demander" data-question="Commente l'ancienneté des impayés et dis-moi quels dossiers traiter en premier." aria-label="Demander à l'IA">✦</button></header>
+            <div class="zone" id="g-anciennete"></div>
+          </article>
+          <article class="carte graphique" data-graphique="encaissements">
+            <header><h2>Encaissements attendus</h2><span class="legende"><i class="pastille-couleur s1"></i>sains <i class="pastille-couleur s4"></i>à risque</span><button type="button" class="demander" data-question="Quels encaissements attendre sur les 6 prochains mois et quelle part est à risque ?" aria-label="Demander à l'IA">✦</button></header>
+            <div class="zone" id="g-encaissements"></div>
+          </article>
+          <article class="carte graphique" data-graphique="partenaires">
+            <header><h2>Encours par partenaire</h2><span class="legende"><i class="pastille-couleur s2"></i>sain <i class="pastille-couleur s4"></i>en retard</span><button type="button" class="demander" data-question="Quel partenaire concentre le plus de risque et que recommandes-tu ?" aria-label="Demander à l'IA">✦</button></header>
+            <div class="zone" id="g-partenaires"></div>
+          </article>
+          <article class="carte graphique" data-graphique="risques">
+            <header><h2>Top 5 des dossiers à risque</h2><button type="button" class="demander" data-question="Quels dossiers relancer en priorité ?" aria-label="Demander à l'IA">✦</button></header>
+            <div class="zone zone-table" id="g-risques"></div>
+          </article>
+        </div>
+      </section>
 
-      <div role="tabpanel" id="panneau-audit" aria-labelledby="onglet-audit">
-        <p class="muet petit">Chaque outil appelé par le modèle : arguments, résultat brut et durée. Les chiffres de la réponse viennent de là, pas de l'imagination du modèle.</p>
+      <!-- Contrats -->
+      <section class="vue vue-contrats" id="vue-contrats" hidden>
+        <div class="filtres" role="group" aria-label="Filtres">
+          <label>Produit <select id="f-produit"><option value="">Tous</option><option>Crédit-bail</option><option>LOA</option><option>LLD</option><option>Crédit amortissable</option></select></label>
+          <label>Statut <select id="f-statut"><option value="">Tous</option><option value="vivants">Vivants</option><option value="retard">En retard</option><option>sain</option><option>impayé</option><option>contentieux</option><option>soldé</option></select></label>
+          <label>Partenaire <select id="f-partenaire"><option value="">Tous</option></select></label>
+          <label class="recherche">Client <input type="search" id="f-client" placeholder="Rechercher…"></label>
+          <span class="muet" id="f-compte"></span>
+          <button type="button" class="bouton secondaire" id="f-effacer">Effacer les filtres</button>
+        </div>
+        <div class="carte table-pleine">
+          <table class="table-contrats">
+            <thead><tr><th>Contrat</th><th>Client</th><th>Produit</th><th>Partenaire</th><th class="num">Restant dû</th><th class="num">Loyer</th><th class="num">Impayé</th><th>Statut</th><th>Fin</th></tr></thead>
+            <tbody id="liste-contrats"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Recouvrement et règles -->
+      <section class="vue vue-recouvrement" id="vue-recouvrement" hidden>
+        <article class="carte">
+          <header class="carte-entete"><h2>Dossiers en retard, par priorité</h2><span class="compteur" id="regles-etat">règles par défaut</span></header>
+          <div class="table-pleine"><table><thead><tr><th>Contrat</th><th>Client</th><th class="num">Impayé</th><th class="num">Retard</th><th class="num">Score</th><th>Niveau</th><th>Action recommandée</th></tr></thead><tbody id="liste-priorites"></tbody></table></div>
+        </article>
+        <article class="carte regles">
+          <header class="carte-entete"><h2>Règles de recouvrement</h2><span class="muet petit">configurables sans code</span></header>
+          <p class="muet petit">La <strong>première règle</strong> dont toutes les conditions sont vraies donne l'action et son niveau ; les poids calculent le score. Conditions : <code>statut</code>, <code>produit</code>, <code>partenaire</code>, <code>jours_retard_min</code>, <code>jours_retard_max</code>, <code>montant_impaye_min</code>, <code>encours_min</code>. Niveaux : faible, moyen, élevé, critique.</p>
+          <label class="masque" for="editeur-regles">Règles au format JSON</label>
+          <textarea id="editeur-regles" class="editeur" spellcheck="false"></textarea>
+          <div class="actions-regles">
+            <button type="button" class="bouton" id="appliquer-regles">Valider et appliquer</button>
+            <button type="button" class="bouton secondaire" id="reinitialiser-regles">Règles par défaut</button>
+          </div>
+          <div id="statut-regles" class="statut-regles" role="status"></div>
+        </article>
+      </section>
+
+      <!-- Serveur MCP -->
+      <section class="vue vue-mcp" id="vue-mcp" hidden>
+        <article class="carte">
+          <h2>Branchez votre propre agent</h2>
+          <p>Les sept outils métier du portefeuille sont exposés par un serveur <abbr title="Model Context Protocol">MCP</abbr> public, en lecture seule. Le tableau de bord, les fiches et l'assistant passent tous par lui.</p>
+          <pre><code id="commande-mcp">claude mcp add --transport http portefeuille https://…/api/mcp</code></pre>
+          <ul class="outils-mcp" id="outils-mcp"></ul>
+          <p class="muet petit">Architecture : interface HTML/CSS/JS sans framework, graphiques SVG faits main → fonctions serverless Node sur Vercel → <code>/api/assistant</code> (Ministral 14B avec appels d'outils, réponses en flux) et <code>/api/mcp</code> (JSON-RPC 2.0, Streamable HTTP, aussi en stdio). Aucune dépendance npm. <a href="https://github.com/mcpolo78/portefeuille-ia-demo">Code source</a>.</p>
+        </article>
+      </section>
+    </div>
+
+    <!-- Assistant IA, panneau latéral -->
+    <aside class="panneau-ia" id="assistant" aria-label="Assistant IA" hidden>
+      <header class="assistant-entete">
+        <div class="onglets" role="tablist">
+          <button type="button" role="tab" id="onglet-conversation" aria-controls="panneau-conversation" aria-selected="true">Conversation</button>
+          <button type="button" role="tab" id="onglet-audit" aria-controls="panneau-audit" aria-selected="false" tabindex="-1">Piste d'audit <span class="compteur" id="audit-compte">0</span></button>
+        </div>
+        <button type="button" class="bouton-icone" id="fermer-assistant" aria-label="Fermer l'assistant">×</button>
+      </header>
+      <div role="tabpanel" class="panneau-conversation" id="panneau-conversation" aria-labelledby="onglet-conversation">
+        <div class="fil" id="fil" aria-live="polite">
+          <div class="bulle assistant"><p>Bonjour ! Je lis le portefeuille par sept outils MCP. Posez une question, ou cliquez sur ✦ au coin d'un graphique.</p></div>
+        </div>
+        <div class="suggestions" id="suggestions">
+          <button type="button" data-outil="priorites_recouvrement" data-args='{"limite":5}'>Quels dossiers relancer en priorité ?</button>
+          <button type="button" data-outil="statistiques_portefeuille" data-args='{}'>Résume la santé du portefeuille</button>
+          <button type="button" data-outil="simuler_avenant" data-args='{"id":"CT-2024-1121","nouvelle_duree_restante_mois":24}'>Si on étale CT-2024-1121 sur 24 mois ?</button>
+        </div>
+        <form class="saisie" id="formulaire">
+          <label class="masque" for="question">Votre question</label>
+          <textarea id="question" rows="2" maxlength="600" placeholder="Votre question sur le portefeuille…" required></textarea>
+          <button type="submit" class="bouton" id="envoyer">Envoyer</button>
+        </form>
+      </div>
+      <div role="tabpanel" class="panneau-audit" id="panneau-audit" aria-labelledby="onglet-audit" hidden>
+        <p class="muet petit">Chaque outil appelé par le modèle : arguments, résultat brut et durée.</p>
         <ol class="journal" id="journal"></ol>
       </div>
-
-      <div role="tabpanel" id="panneau-regles" aria-labelledby="onglet-regles" hidden>
-        <p class="muet petit">Configurez sans code les règles de recouvrement. La <strong>première règle</strong> dont toutes les conditions sont vraies donne l'action et son niveau ; les poids calculent le score de priorité. L'assistant et le serveur MCP les appliquent aussitôt.</p>
-        <details class="aide">
-          <summary>Conditions possibles</summary>
-          <p class="petit"><code>statut</code> (sain, impayé, contentieux), <code>produit</code> (Crédit-bail, LOA, LLD, Crédit amortissable), <code>partenaire</code>, <code>jours_retard_min</code>, <code>jours_retard_max</code>, <code>montant_impaye_min</code>, <code>encours_min</code>. Niveaux : faible, moyen, élevé, critique. <code>"si": {}</code> est toujours vrai.</p>
-        </details>
-        <label class="masque" for="editeur-regles">Règles au format JSON</label>
-        <textarea id="editeur-regles" class="editeur" spellcheck="false" rows="16"></textarea>
-        <div class="actions-regles">
-          <button type="button" class="bouton" id="appliquer-regles">Valider et appliquer</button>
-          <button type="button" class="bouton secondaire" id="reinitialiser-regles">Revenir aux règles par défaut</button>
-        </div>
-        <div id="statut-regles" class="statut-regles" role="status"></div>
-        <div id="apercu-regles"></div>
-      </div>
     </aside>
-  </main>
+  </div>
 
-  <section class="carte connecter">
-    <h2>Branchez votre propre agent</h2>
-    <p>Le même serveur MCP est public, en lecture seule. Dans Claude Code, par exemple :</p>
-    <pre><code id="commande-mcp">claude mcp add --transport http portefeuille https://…/api/mcp</code></pre>
-    <p class="muet petit">Architecture : interface HTML/CSS/JS sans framework → fonction serverless Node <code>/api/assistant</code> → Ministral 14B avec appels d'outils (boucle de 5 tours max) → six outils métier, les mêmes que ceux du serveur MCP <code>/api/mcp</code> (JSON-RPC 2.0, transport Streamable HTTP) et de sa version stdio. Aucune dépendance npm.</p>
-  </section>
+  <div class="infobulle" id="infobulle" role="tooltip" hidden></div>
 
   <dialog class="fiche" id="fiche" aria-labelledby="fiche-titre">
     <div class="fiche-entete">
       <h2 id="fiche-titre">Contrat</h2>
-      <button type="button" class="fermer" id="fermer-fiche" aria-label="Fermer la fiche">×</button>
+      <button type="button" class="bouton-icone" id="fermer-fiche" aria-label="Fermer la fiche">×</button>
     </div>
     <div id="fiche-contenu"></div>
   </dialog>
-
-  <footer class="pied">
-    <span>Marc Chesnel · développeur fullstack JavaScript</span>
-    <a href="https://marcchesnel.com">marcchesnel.com</a>
-  </footer>
 </body>
 </html>
