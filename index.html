@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Copilote portefeuille · démo IA + MCP</title>
+  <meta name="description" content="Démo : un assistant IA (Ministral 14B, Mistral AI) interroge un portefeuille fictif de crédits et de leasings via un serveur MCP, avec piste d'audit de chaque appel d'outil.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="app.css?v=1">
+  <script src="app.js?v=1" defer></script>
+</head>
+<body>
+  <header class="entete">
+    <div class="entete-titre">
+      <span class="logo" aria-hidden="true">€</span>
+      <div>
+        <h1>Copilote portefeuille</h1>
+        <p class="sous-titre">Un assistant IA qui interroge un portefeuille de crédits et de leasings par un serveur <abbr title="Model Context Protocol">MCP</abbr>.</p>
+      </div>
+    </div>
+    <div class="entete-actions">
+      <span class="pastille" id="etat-modele" title="Modèle utilisé">Ministral 14B</span>
+      <button type="button" class="bouton-theme" id="bouton-theme" aria-label="Changer de thème">◐</button>
+    </div>
+  </header>
+
+  <p class="bandeau">Données <strong>fictives</strong> (40 contrats, clients inventés), arrêtées au <strong>31/10/2026</strong>. Projet de démonstration par <a href="https://marcchesnel.com">Marc Chesnel</a>.</p>
+
+  <section class="kpis" aria-label="Indicateurs du portefeuille">
+    <div class="kpi"><span class="kpi-label">Encours</span><span class="kpi-valeur" data-kpi="encours_total" data-format="euros">…</span></div>
+    <div class="kpi"><span class="kpi-label">Contrats vivants</span><span class="kpi-valeur" data-kpi="contrats_vivants">…</span></div>
+    <div class="kpi"><span class="kpi-label">Contrats en retard</span><span class="kpi-valeur" data-kpi="taux_contrats_en_retard_pct" data-format="pct">…</span></div>
+    <div class="kpi alerte"><span class="kpi-label">Montant impayé</span><span class="kpi-valeur" data-kpi="montant_impaye_total" data-format="euros">…</span></div>
+  </section>
+
+  <main class="grille">
+    <section class="carte chat" aria-label="Conversation">
+      <div class="fil" id="fil" aria-live="polite">
+        <div class="bulle assistant">
+          <p>Bonjour ! Je suis branché sur le portefeuille par six outils MCP : statistiques, recherche, fiche contrat, échéancier, simulation d'avenant et priorités de recouvrement. Posez une question, ou choisissez un exemple.</p>
+        </div>
+      </div>
+      <div class="suggestions" id="suggestions">
+        <button type="button" data-outil="priorites_recouvrement" data-args='{"limite":5}'>Quels dossiers relancer en priorité ?</button>
+        <button type="button" data-outil="statistiques_portefeuille" data-args='{}'>Résume la santé du portefeuille</button>
+        <button type="button" data-outil="rechercher_contrats" data-args='{"produit":"LLD","tri":"capital_restant_du","limite":5}'>Les 5 plus gros encours en LLD</button>
+        <button type="button" data-outil="simuler_avenant" data-args='{"id":"CT-2024-1121","nouvelle_duree_restante_mois":24}'>Si on étale CT-2024-1121 sur 24 mois ?</button>
+      </div>
+      <form class="saisie" id="formulaire">
+        <label class="masque" for="question">Votre question</label>
+        <textarea id="question" rows="2" maxlength="600" placeholder="Ex. : quels contrats Agri Matériel 78 sont en retard ?" required></textarea>
+        <button type="submit" id="envoyer">Envoyer</button>
+      </form>
+    </section>
+
+    <aside class="carte audit" aria-label="Piste d'audit">
+      <div class="audit-entete">
+        <h2>Piste d'audit</h2>
+        <span class="muet" id="audit-compte">0 appel</span>
+      </div>
+      <p class="muet petit">Chaque outil appelé par le modèle : arguments, résultat brut et durée. Les chiffres de la réponse viennent de là, pas de l'imagination du modèle.</p>
+      <ol class="journal" id="journal"></ol>
+    </aside>
+  </main>
+
+  <section class="carte connecter">
+    <h2>Branchez votre propre agent</h2>
+    <p>Le même serveur MCP est public, en lecture seule. Dans Claude Code, par exemple :</p>
+    <pre><code id="commande-mcp">claude mcp add --transport http portefeuille https://…/api/mcp</code></pre>
+    <p class="muet petit">Architecture : interface HTML/CSS/JS sans framework → fonction serverless Node <code>/api/assistant</code> → Ministral 14B avec appels d'outils (boucle de 5 tours max) → six outils métier, les mêmes que ceux du serveur MCP <code>/api/mcp</code> (JSON-RPC 2.0, transport Streamable HTTP) et de sa version stdio. Aucune dépendance npm.</p>
+  </section>
+
+  <footer class="pied">
+    <span>Marc Chesnel · développeur fullstack JavaScript</span>
+    <a href="https://marcchesnel.com">marcchesnel.com</a>
+  </footer>
+</body>
+</html>

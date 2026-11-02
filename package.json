@@ -1,0 +1,13 @@
+{
+  "name": "portefeuille-ia-demo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Assistant IA qui interroge un portefeuille fictif de crédits et de leasings via un serveur MCP (Ministral 14B).",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "node dev-server.js",
+    "mcp": "node mcp-stdio.js",
+    "test": "node --test test/*.js"
+  }
+}
