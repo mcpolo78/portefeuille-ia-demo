@@ -95,11 +95,12 @@ function markdown(texte) {
       html.push(ordonnee ? `<ol>${items.join('')}</ol>` : `<ul>${items.join('')}</ul>`);
       continue;
     }
+    if (/^\s*(-{3,}|\*{3,})\s*$/.test(l)) { html.push('<hr>'); i++; continue; }
     const titre = l.match(/^#{1,4}\s+(.*)/);
     if (titre) { html.push(`<p class="titre-md">${enLigne(titre[1])}</p>`); i++; continue; }
     if (l.trim()) {
       const para = [];
-      while (i < lignes.length && lignes[i].trim() && !/^\s*(\||[-*•]\s|\d+[.)]\s|#)/.test(lignes[i])) para.push(lignes[i++]);
+      while (i < lignes.length && lignes[i].trim() && !/^\s*(\||[-*•]\s|\d+[.)]\s|#|-{3,}\s*$)/.test(lignes[i])) para.push(lignes[i++]);
       if (para.length) { html.push(`<p>${para.map(enLigne).join('<br>')}</p>`); continue; }
     }
     i++;

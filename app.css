@@ -85,6 +85,7 @@ abbr { text-decoration: none; border-bottom: 1px dotted currentColor; cursor: he
 .bulle.utilisateur { align-self: flex-end; background: var(--accent); color: var(--on-accent); border-top-right-radius: 4px; }
 .bulle.secours { border: 1px dashed var(--border); }
 .titre-md { font-weight: 700; }
+.bulle hr { border: 0; border-top: 1px solid var(--border); margin: 0.5rem 0; }
 .meta { font-size: 0.78rem; color: var(--muted); }
 .attente span { animation: clignote 1.2s infinite; }
 .attente span:nth-child(2) { animation-delay: 0.2s; }
