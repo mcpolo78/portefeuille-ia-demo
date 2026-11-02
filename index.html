@@ -6,8 +6,8 @@
   <title>Copilote portefeuille · démo IA + MCP</title>
   <meta name="description" content="Démo : un assistant IA (Ministral 14B, Mistral AI) interroge un portefeuille fictif de crédits et de leasings via un serveur MCP, avec piste d'audit de chaque appel d'outil.">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="app.css?v=1">
-  <script src="app.js?v=1" defer></script>
+  <link rel="stylesheet" href="app.css?v=2">
+  <script src="app.js?v=2" defer></script>
 </head>
 <body>
   <header class="entete">
@@ -37,7 +37,7 @@
     <section class="carte chat" aria-label="Conversation">
       <div class="fil" id="fil" aria-live="polite">
         <div class="bulle assistant">
-          <p>Bonjour ! Je suis branché sur le portefeuille par six outils MCP : statistiques, recherche, fiche contrat, échéancier, simulation d'avenant et priorités de recouvrement. Posez une question, ou choisissez un exemple.</p>
+          <p>Bonjour ! Je suis branché sur le portefeuille par six outils MCP : statistiques, recherche, fiche contrat, échéancier, simulation d'avenant et priorités de recouvrement. Posez une question, ou choisissez un exemple. Cliquez sur un numéro de contrat pour ouvrir sa fiche.</p>
         </div>
       </div>
       <div class="suggestions" id="suggestions">
@@ -53,13 +53,32 @@
       </form>
     </section>
 
-    <aside class="carte audit" aria-label="Piste d'audit">
-      <div class="audit-entete">
-        <h2>Piste d'audit</h2>
-        <span class="muet" id="audit-compte">0 appel</span>
+    <aside class="carte panneau" aria-label="Piste d'audit et règles">
+      <div class="onglets" role="tablist">
+        <button type="button" role="tab" id="onglet-audit" aria-controls="panneau-audit" aria-selected="true">Piste d'audit <span class="compteur" id="audit-compte">0</span></button>
+        <button type="button" role="tab" id="onglet-regles" aria-controls="panneau-regles" aria-selected="false" tabindex="-1">Règles <span class="compteur" id="regles-etat">défaut</span></button>
       </div>
-      <p class="muet petit">Chaque outil appelé par le modèle : arguments, résultat brut et durée. Les chiffres de la réponse viennent de là, pas de l'imagination du modèle.</p>
-      <ol class="journal" id="journal"></ol>
+
+      <div role="tabpanel" id="panneau-audit" aria-labelledby="onglet-audit">
+        <p class="muet petit">Chaque outil appelé par le modèle : arguments, résultat brut et durée. Les chiffres de la réponse viennent de là, pas de l'imagination du modèle.</p>
+        <ol class="journal" id="journal"></ol>
+      </div>
+
+      <div role="tabpanel" id="panneau-regles" aria-labelledby="onglet-regles" hidden>
+        <p class="muet petit">Configurez sans code les règles de recouvrement. La <strong>première règle</strong> dont toutes les conditions sont vraies donne l'action et son niveau ; les poids calculent le score de priorité. L'assistant et le serveur MCP les appliquent aussitôt.</p>
+        <details class="aide">
+          <summary>Conditions possibles</summary>
+          <p class="petit"><code>statut</code> (sain, impayé, contentieux), <code>produit</code> (Crédit-bail, LOA, LLD, Crédit amortissable), <code>partenaire</code>, <code>jours_retard_min</code>, <code>jours_retard_max</code>, <code>montant_impaye_min</code>, <code>encours_min</code>. Niveaux : faible, moyen, élevé, critique. <code>"si": {}</code> est toujours vrai.</p>
+        </details>
+        <label class="masque" for="editeur-regles">Règles au format JSON</label>
+        <textarea id="editeur-regles" class="editeur" spellcheck="false" rows="16"></textarea>
+        <div class="actions-regles">
+          <button type="button" class="bouton" id="appliquer-regles">Valider et appliquer</button>
+          <button type="button" class="bouton secondaire" id="reinitialiser-regles">Revenir aux règles par défaut</button>
+        </div>
+        <div id="statut-regles" class="statut-regles" role="status"></div>
+        <div id="apercu-regles"></div>
+      </div>
     </aside>
   </main>
 
@@ -69,6 +88,14 @@
     <pre><code id="commande-mcp">claude mcp add --transport http portefeuille https://…/api/mcp</code></pre>
     <p class="muet petit">Architecture : interface HTML/CSS/JS sans framework → fonction serverless Node <code>/api/assistant</code> → Ministral 14B avec appels d'outils (boucle de 5 tours max) → six outils métier, les mêmes que ceux du serveur MCP <code>/api/mcp</code> (JSON-RPC 2.0, transport Streamable HTTP) et de sa version stdio. Aucune dépendance npm.</p>
   </section>
+
+  <dialog class="fiche" id="fiche" aria-labelledby="fiche-titre">
+    <div class="fiche-entete">
+      <h2 id="fiche-titre">Contrat</h2>
+      <button type="button" class="fermer" id="fermer-fiche" aria-label="Fermer la fiche">×</button>
+    </div>
+    <div id="fiche-contenu"></div>
+  </dialog>
 
   <footer class="pied">
     <span>Marc Chesnel · développeur fullstack JavaScript</span>

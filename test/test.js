@@ -106,3 +106,28 @@ test('assistant : clé absente → 503, requête vide → 400', async () => {
   assert.equal(res2.code, 503);
   process.env.MISTRAL_API_KEY = cle;
 });
+
+test('règles : validation, application et passage par MCP (_meta)', async () => {
+  const { validerRegles, REGLES_DEFAUT } = await import('../lib/regles.js');
+  assert.equal(validerRegles(REGLES_DEFAUT).ok, true);
+  const mauvaise = validerRegles({ regles: [{ si: { couleur: 'rouge' }, action: 'x', niveau: 'urgent' }], autre: 1 });
+  assert.equal(mauvaise.ok, false);
+  assert.ok(mauvaise.erreurs.length >= 3);
+  const perso = { regles: [{ si: { produit: 'LLD' }, action: 'Reprise du véhicule', niveau: 'élevé' }, { si: {}, action: 'Relance', niveau: 'faible' }] };
+  const r = traiterMessage({ jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name: 'priorites_recouvrement', arguments: { limite: 20 }, _meta: { regles: perso } } });
+  const prio = r.result.structuredContent.priorites;
+  assert.equal(r.result.structuredContent.regles, 'personnalisées');
+  assert.ok(prio.every((d) => d.action_recommandee === (d.produit === 'LLD' ? 'Reprise du véhicule' : 'Relance')));
+  const ko = traiterMessage({ jsonrpc: '2.0', id: 10, method: 'tools/call', params: { name: 'priorites_recouvrement', arguments: {}, _meta: { regles: { regles: [] } } } });
+  assert.equal(ko.error.code, -32602);
+});
+
+test('assistant : flux d\'événements (étapes en direct)', async () => {
+  const { default: handler } = await import('../api/assistant.js');
+  let texte = '';
+  const res = fauxRes();
+  res.write = (morceau) => { texte += morceau; return true; };
+  await handler({ method: 'POST', headers: {}, body: { flux: true, messages: [{ role: 'user', content: 'Combien ?' }] } }, res);
+  const types = [...texte.matchAll(/^event: (.*)$/gm)].map((m) => m[1]);
+  assert.deepEqual(types, ['reflexion', 'etape', 'trace', 'reflexion', 'fin']);
+});

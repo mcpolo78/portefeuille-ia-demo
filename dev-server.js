@@ -8,7 +8,7 @@ import { extname, join, normalize } from 'node:path';
 const PORT = Number(process.env.PORT) || 3000;
 const RACINE = new URL('.', import.meta.url).pathname;
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json', '.png': 'image/png' };
-const API = { '/api/mcp': () => import('./api/mcp.js'), '/api/assistant': () => import('./api/assistant.js') };
+const API = { '/api/mcp': () => import('./api/mcp.js'), '/api/assistant': () => import('./api/assistant.js'), '/api/regles': () => import('./api/regles.js') };
 
 function enrichir(res) {
   res.status = (code) => { res.statusCode = code; return res; };
