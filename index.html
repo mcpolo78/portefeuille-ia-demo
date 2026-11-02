@@ -6,15 +6,14 @@
   <title>Copilote portefeuille · démo IA + MCP</title>
   <meta name="description" content="Démo : tableau de bord d'un portefeuille fictif de crédits et de leasings, avec un assistant IA (Ministral 14B, Mistral AI) qui interroge les données par un serveur MCP.">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="app.css?v=7">
+  <link rel="stylesheet" href="app.css?v=8">
   <script type="module" src="app.js?v=7"></script>
 </head>
 <body>
   <div class="app">
     <nav class="menu" aria-label="Navigation principale">
       <div class="marque">
-        <span class="logo" aria-hidden="true">€</span>
-        <span class="marque-texte">Copilote<br><small>portefeuille</small></span>
+        <a class="accueil" href="#tableau" aria-label="Accueil : tableau de bord" title="Accueil"><span class="logo" aria-hidden="true">€</span><span class="marque-texte">Copilote<br><small>portefeuille</small></span></a>
         <button type="button" class="reduire-menu" id="reduire-menu" aria-expanded="true" aria-controls="liens-menu" aria-label="Réduire le menu" title="Réduire le menu"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/><path class="fleche" d="M15.5 9.5L13 12l2.5 2.5"/></svg></button>
       </div>
       <ul id="liens-menu">
