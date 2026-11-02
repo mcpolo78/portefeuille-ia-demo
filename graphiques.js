@@ -171,8 +171,9 @@ export function barres(zone, items, { format, formatAxe, clic, classeDe }) {
       el('rect', { x, y: Y(cumul + v.v), width: lb, height: Math.max(0, Y(cumul) - Y(cumul + v.v)), rx: 3, class: classeDe ? classeDe(i, k) : v.classe }, g);
       cumul += v.v;
     });
-    texte(svg, x + lb / 2, Y(totaux[i]) - 4, it.etiquette ?? formatAxe(totaux[i]), { 'text-anchor': 'middle', class: 'etiquette forte' });
-    texte(svg, x + lb / 2, h - 6, it.label, { 'text-anchor': 'middle', class: 'etiquette' });
+    // Colonnes étroites : on garde les valeurs dans l'infobulle et on raccourcit les mois
+    if (largeur >= 50) texte(svg, x + lb / 2, Y(totaux[i]) - 4, it.etiquette ?? formatAxe(totaux[i]), { 'text-anchor': 'middle', class: 'etiquette forte' });
+    texte(svg, x + lb / 2, h - 6, largeur >= 50 ? it.label : String(it.label).split(' ')[0], { 'text-anchor': 'middle', class: 'etiquette' });
     survol(g, it.infobulle, clic && (() => clic(it)));
   });
 }

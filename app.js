@@ -523,7 +523,7 @@ async function dessinerTopRisques() {
   try {
     const res = await appelerOutilMcp('priorites_recouvrement', { limite: 5 });
     $('#g-risques').innerHTML = '<table class="top-risques"><colgroup><col><col class="c-num"><col class="c-retard"></colgroup><thead><tr><th>Dossier</th><th class="num">Impayé</th><th class="num">Retard</th></tr></thead><tbody>' +
-      res.priorites.map((d) => `<tr><td class="client"><i class="point-niveau niveau-${classe(d.niveau)}" title="Niveau ${echapper(d.niveau)}"></i>${boutonContrat(d.id)}<span class="sous-ligne" title="${echapper(d.client)}">${echapper(d.client)}</span></td><td class="num">${euros.format(d.montant_impaye)}</td><td class="num">${d.jours_retard} j</td></tr>`).join('') +
+      res.priorites.map((d) => `<tr><td class="client"><i class="point-niveau niveau-${classe(d.niveau)}" title="Niveau ${echapper(d.niveau)}"></i>${boutonContrat(d.id)}<span class="sous-ligne" title="${echapper(d.client)}">${echapper(d.client)}</span></td><td class="num">${compact(d.montant_impaye)}</td><td class="num">${d.jours_retard} j</td></tr>`).join('') +
       '</tbody></table>';
   } catch {
     $('#g-risques').textContent = 'Indisponible.';

@@ -6,8 +6,8 @@
   <title>Copilote portefeuille · démo IA + MCP</title>
   <meta name="description" content="Démo : tableau de bord d'un portefeuille fictif de crédits et de leasings, avec un assistant IA (Ministral 14B, Mistral AI) qui interroge les données par un serveur MCP.">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="app.css?v=4">
-  <script type="module" src="app.js?v=4"></script>
+  <link rel="stylesheet" href="app.css?v=5">
+  <script type="module" src="app.js?v=5"></script>
 </head>
 <body>
   <div class="app">
@@ -31,7 +31,7 @@
         <div class="barre-actions">
           <span class="pastille" title="Modèle utilisé par l'assistant">Ministral 14B</span>
           <button type="button" class="bouton-icone" id="bouton-theme" aria-label="Changer de thème">◐</button>
-          <button type="button" class="bouton" id="ouvrir-assistant" aria-controls="assistant" aria-expanded="false">✦ Demander à l'IA</button>
+          <button type="button" class="bouton bouton-ia" id="ouvrir-assistant" aria-controls="assistant" aria-expanded="false">✦ Demander à l'IA</button>
         </div>
       </header>
 
@@ -46,27 +46,27 @@
         </div>
         <div class="grille-graphiques">
           <article class="carte graphique large" data-graphique="encours">
-            <header><h2>Évolution de l'encours</h2><span class="legende"><i class="pastille-couleur s1"></i>réalisé <i class="pastille-couleur s1 pointille"></i>projeté</span><button type="button" class="demander" data-question="Comment l'encours a-t-il évolué sur 12 mois et que prévoir pour les 12 prochains ?" aria-label="Demander à l'IA">✦</button></header>
+            <header><h2>Évolution de l'encours</h2><span class="legende"><i class="pastille-couleur s1"></i>réalisé <i class="pastille-couleur s1 pointille"></i>projeté</span><button type="button" class="demander" title="Demander à l'IA" data-question="Comment l'encours a-t-il évolué sur 12 mois et que prévoir pour les 12 prochains ?" aria-label="Demander à l'IA">✦</button></header>
             <div class="zone" id="g-encours"></div>
           </article>
           <article class="carte graphique" data-graphique="produits">
-            <header><h2>Encours par produit</h2><button type="button" class="demander" data-question="Analyse la répartition de l'encours par produit et le risque associé." aria-label="Demander à l'IA">✦</button></header>
+            <header><h2>Encours par produit</h2><button type="button" class="demander" title="Demander à l'IA" data-question="Analyse la répartition de l'encours par produit et le risque associé." aria-label="Demander à l'IA">✦</button></header>
             <div class="zone" id="g-produits"></div>
           </article>
           <article class="carte graphique" data-graphique="anciennete">
-            <header><h2>Ancienneté des impayés</h2><button type="button" class="demander" data-question="Commente l'ancienneté des impayés et dis-moi quels dossiers traiter en premier." aria-label="Demander à l'IA">✦</button></header>
+            <header><h2>Ancienneté des impayés</h2><button type="button" class="demander" title="Demander à l'IA" data-question="Commente l'ancienneté des impayés et dis-moi quels dossiers traiter en premier." aria-label="Demander à l'IA">✦</button></header>
             <div class="zone" id="g-anciennete"></div>
           </article>
           <article class="carte graphique" data-graphique="encaissements">
-            <header><h2>Encaissements attendus</h2><span class="legende"><i class="pastille-couleur s1"></i>sains <i class="pastille-couleur s4"></i>à risque</span><button type="button" class="demander" data-question="Quels encaissements attendre sur les 6 prochains mois et quelle part est à risque ?" aria-label="Demander à l'IA">✦</button></header>
+            <header><h2>Encaissements attendus</h2><span class="legende"><i class="pastille-couleur s1"></i>sains <i class="pastille-couleur s4"></i>à risque</span><button type="button" class="demander" title="Demander à l'IA" data-question="Quels encaissements attendre sur les 6 prochains mois et quelle part est à risque ?" aria-label="Demander à l'IA">✦</button></header>
             <div class="zone" id="g-encaissements"></div>
           </article>
           <article class="carte graphique" data-graphique="partenaires">
-            <header><h2>Encours par partenaire</h2><span class="legende"><i class="pastille-couleur s2"></i>sain <i class="pastille-couleur s4"></i>en retard</span><button type="button" class="demander" data-question="Quel partenaire concentre le plus de risque et que recommandes-tu ?" aria-label="Demander à l'IA">✦</button></header>
+            <header><h2>Encours par partenaire</h2><span class="legende"><i class="pastille-couleur s2"></i>sain <i class="pastille-couleur s4"></i>en retard</span><button type="button" class="demander" title="Demander à l'IA" data-question="Quel partenaire concentre le plus de risque et que recommandes-tu ?" aria-label="Demander à l'IA">✦</button></header>
             <div class="zone" id="g-partenaires"></div>
           </article>
           <article class="carte graphique" data-graphique="risques">
-            <header><h2>Top 5 des dossiers à risque</h2><button type="button" class="demander" data-question="Quels dossiers relancer en priorité ?" aria-label="Demander à l'IA">✦</button></header>
+            <header><h2>Top 5 des dossiers à risque</h2><button type="button" class="demander" title="Demander à l'IA" data-question="Quels dossiers relancer en priorité ?" aria-label="Demander à l'IA">✦</button></header>
             <div class="zone zone-table" id="g-risques"></div>
           </article>
         </div>
