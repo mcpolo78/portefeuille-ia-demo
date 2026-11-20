@@ -1,0 +1,53 @@
+<article class="carte">
+  <header class="carte-entete">
+    <h2>Dossiers en retard, par priorité</h2>
+    <span class="compteur" [class.perso]="regles.personnalisees()">{{ regles.personnalisees() ? 'règles personnalisées' : 'règles par défaut' }}</span>
+  </header>
+  <div class="table-pleine">
+    <table>
+      <thead>
+        <tr><th>Contrat</th><th>Client</th><th class="num">Impayé</th><th class="num">Retard</th><th class="num">Score</th><th>Niveau</th><th>Action recommandée</th></tr>
+      </thead>
+      <tbody class="liste-priorites">
+        @if (p.priorites.error(); as erreur) {
+          <tr><td colspan="7">{{ $any(erreur).message }}</td></tr>
+        } @else {
+          @for (d of p.priorites.value() ?? []; track d.id) {
+            <tr>
+              <td><button type="button" class="lien-contrat" [attr.data-contrat]="d.id" title="Ouvrir la fiche du contrat">{{ d.id }}</button></td>
+              <td>{{ d.client }}</td>
+              <td class="num">{{ d.montant_impaye | euros }}</td>
+              <td class="num">{{ d.jours_retard }} j</td>
+              <td class="num">{{ d.score }}</td>
+              <td><span class="niveau niveau-{{ d.niveau | classeCss }}">{{ d.niveau }}</span></td>
+              <td>{{ d.action_recommandee }}</td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+</article>
+<article class="carte regles">
+  <header class="carte-entete"><h2>Règles de recouvrement</h2><span class="muet petit">configurables sans code</span></header>
+  <p class="muet petit">
+    La <strong>première règle</strong> dont toutes les conditions sont vraies donne l'action et son niveau ; les poids calculent le score. Conditions :
+    <code>statut</code>, <code>produit</code>, <code>partenaire</code>, <code>jours_retard_min</code>, <code>jours_retard_max</code>,
+    <code>montant_impaye_min</code>, <code>encours_min</code>. Niveaux : faible, moyen, élevé, critique.
+  </p>
+  <label class="masque" for="editeur-regles">Règles au format JSON</label>
+  <textarea id="editeur-regles" class="editeur" spellcheck="false" [value]="texte()" (input)="texte.set($any($event.target).value)"></textarea>
+  <div class="actions-regles">
+    <button type="button" class="bouton" (click)="valider()">Valider et appliquer</button>
+    <button type="button" class="bouton secondaire" (click)="reinitialiser()">Règles par défaut</button>
+  </div>
+  <div role="status" [class]="'statut-regles ' + (statut()?.type ?? '')">
+    @if (statut(); as s) {
+      @if (s.erreurs) {
+        <ul>@for (e of s.erreurs; track $index) { <li>{{ e }}</li> }</ul>
+      } @else {
+        {{ s.texte }}
+      }
+    }
+  </div>
+</article>

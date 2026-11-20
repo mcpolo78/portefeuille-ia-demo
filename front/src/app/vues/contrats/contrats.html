@@ -1,0 +1,62 @@
+@let f = p.filtres();
+@let liste = p.contratsVisibles();
+<div class="filtres" role="group" aria-label="Filtres">
+  <label>Produit
+    <select (change)="regler('produit', $event)">
+      <option value="" [selected]="!f.produit">Tous</option>
+      @for (x of produits; track x) { <option [value]="x" [selected]="x === f.produit">{{ x }}</option> }
+    </select>
+  </label>
+  <label>Statut
+    <select (change)="regler('statut', $event)">
+      <option value="" [selected]="!f.statut">Tous</option>
+      <option value="vivants" [selected]="f.statut === 'vivants'">Vivants</option>
+      <option value="retard" [selected]="f.statut === 'retard'">En retard</option>
+      @for (x of statuts; track x) { <option [value]="x" [selected]="x === f.statut">{{ x }}</option> }
+    </select>
+  </label>
+  <label>Partenaire
+    <select (change)="regler('partenaire', $event)">
+      <option value="" [selected]="!f.partenaire">Tous</option>
+      @for (x of p.partenaires(); track x) { <option [value]="x" [selected]="x === f.partenaire">{{ x }}</option> }
+    </select>
+  </label>
+  <label class="recherche">Client
+    <input type="search" placeholder="Rechercher…" [value]="f.client" (input)="regler('client', $event)" />
+  </label>
+  <span class="muet">
+    @if (p.contrats.value(); as tous) {
+      {{ liste.length }} contrat{{ liste.length > 1 ? 's' : '' }} sur {{ tous.length }}
+    }
+  </span>
+  <button type="button" class="bouton secondaire" (click)="effacer()">Effacer les filtres</button>
+</div>
+<div class="carte table-pleine">
+  <table class="table-contrats">
+    <thead>
+      <tr>
+        <th>Contrat</th><th>Client</th><th>Produit</th><th>Partenaire</th><th class="num">Restant dû</th>
+        <th class="num">Loyer</th><th class="num">Impayé</th><th>Statut</th><th>Fin</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (c of liste; track c.id) {
+        <tr>
+          <td><button type="button" class="lien-contrat" [attr.data-contrat]="c.id" title="Ouvrir la fiche du contrat">{{ c.id }}</button></td>
+          <td>{{ c.client }}</td>
+          <td>{{ c.produit }}</td>
+          <td>{{ c.partenaire }}</td>
+          <td class="num">{{ c.capital_restant_du | euros }}</td>
+          <td class="num">{{ c.loyer_mensuel | euros }}</td>
+          <td class="num">{{ c.montant_impaye ? (c.montant_impaye | euros) : '–' }}</td>
+          <td><span class="statut statut-{{ c.statut | classeCss }}">{{ c.statut }}</span></td>
+          <td>{{ c.date_fin | dateFr }}</td>
+        </tr>
+      } @empty {
+        @if (p.contrats.isLoading()) {
+          <tr><td colspan="9" class="muet">Chargement…</td></tr>
+        }
+      }
+    </tbody>
+  </table>
+</div>

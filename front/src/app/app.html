@@ -1,0 +1,42 @@
+<div class="app" [class.menu-reduit]="ui.menuReduit()" [class.ia-ouverte]="ui.iaOuverte()" [class.redimension]="ui.redimension()" [style.--largeur-ia]="ui.largeurIa()">
+  <nav class="menu" aria-label="Navigation principale">
+    <div class="marque">
+      <a class="accueil" routerLink="/tableau" aria-label="Accueil : tableau de bord" title="Accueil">
+        <span class="logo" aria-hidden="true">€</span><span class="marque-texte">Copilote<br /><small>portefeuille</small></span>
+      </a>
+      <button type="button" class="reduire-menu" aria-controls="liens-menu"
+        [attr.aria-expanded]="!ui.menuReduit()" [attr.aria-label]="ui.menuReduit() ? 'Déplier le menu' : 'Réduire le menu'"
+        [title]="ui.menuReduit() ? 'Déplier le menu' : 'Réduire le menu'" (click)="ui.reduireMenu(!ui.menuReduit())">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3" /><path d="M9 4v16" /><path class="fleche" d="M15.5 9.5L13 12l2.5 2.5" /></svg>
+      </button>
+    </div>
+    <ul id="liens-menu">
+      @for (v of vues; track v.chemin) {
+        <li>
+          <a [routerLink]="v.chemin" routerLinkActive #actif="routerLinkActive" [attr.aria-current]="actif.isActive ? 'page' : null">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="v.icone" /></svg><span>{{ v.libelle }}</span>
+          </a>
+        </li>
+      }
+    </ul>
+    <p class="menu-pied">Données <strong>fictives</strong><br />au 31/10/2026<br /><a href="https://marcchesnel.com">Marc Chesnel</a></p>
+  </nav>
+
+  <div class="principal">
+    <header class="barre">
+      <h1 id="titre-vue">{{ titre() }}</h1>
+      <div class="barre-actions">
+        <span class="pastille" title="Interface Angular 22 (standalone, signals)">Angular</span>
+        <span class="pastille" title="Modèle utilisé par l'assistant">Ministral 14B</span>
+        <button type="button" class="bouton-icone" aria-label="Changer de thème" (click)="ui.basculerTheme()">◐</button>
+        <button type="button" class="bouton bouton-ia" aria-controls="assistant" [attr.aria-expanded]="ui.iaOuverte()" (click)="basculerAssistant()">✦ Demander à l'IA</button>
+      </div>
+    </header>
+    <router-outlet (activate)="changementVue()" />
+  </div>
+
+  <aside appAssistant id="assistant"></aside>
+</div>
+
+<div class="infobulle" id="infobulle" role="tooltip" hidden></div>
+<dialog appFiche></dialog>

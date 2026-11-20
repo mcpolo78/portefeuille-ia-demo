@@ -1,0 +1,84 @@
+<div class="kpis">
+  @let k = t()?.indicateurs;
+  <div class="kpi">
+    <span class="kpi-label">Encours</span>
+    <span class="kpi-valeur">{{ k ? (k.encours | euros) : '…' }}</span>
+    <span class="kpi-pied">
+      @if (k) {
+        @let v = k.encours_variation_12_mois_pct;
+        <span [class]="v >= 0 ? 'hausse' : 'baisse'">{{ v >= 0 ? '▲' : '▼' }} {{ (v < 0 ? -v : v) | nombre }} %</span> sur 1 an
+      }
+    </span>
+    <svg [appSparkline]="sparkEncours()"></svg>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Contrats vivants</span>
+    <span class="kpi-valeur">{{ k?.contrats_vivants ?? '…' }}</span>
+    <span class="kpi-pied">sur 40 contrats</span>
+    <svg [appSparkline]="sparkVivants()"></svg>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Contrats en retard</span>
+    <span class="kpi-valeur alerte">{{ k ? (k.taux_contrats_en_retard_pct | nombre) + ' %' : '…' }}</span>
+    <span class="kpi-pied">{{ k ? k.contrats_en_retard + ' dossiers sur ' + k.contrats_vivants : '' }}</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Montant impayé</span>
+    <span class="kpi-valeur alerte">{{ k ? (k.montant_impaye | euros) : '…' }}</span>
+    <span class="kpi-pied">échéances non réglées</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Loyers de novembre</span>
+    <span class="kpi-valeur">{{ k ? (k.loyers_attendus_mois_prochain | euros) : '…' }}</span>
+    <span class="kpi-pied">{{ t() ? (t()!.encaissements_6_mois[0].a_risque | compact) + ' à risque' : '' }}</span>
+    <svg [appSparkline]="sparkLoyers()"></svg>
+  </div>
+</div>
+
+<div class="grille-graphiques">
+  <article class="large" appCarteGraphique="Évolution de l'encours" question="Comment l'encours a-t-il évolué sur 12 mois et que prévoir pour les 12 prochains ?">
+    <span class="legende"><i class="pastille-couleur s1"></i>réalisé <i class="pastille-couleur s1 pointille"></i>projeté</span>
+    <div class="zone" [appGraphique]="dessins()?.['encours']"></div>
+  </article>
+  <article appCarteGraphique="Encours par produit" question="Analyse la répartition de l'encours par produit et le risque associé.">
+    <div class="zone" [appGraphique]="dessins()?.['produits']"></div>
+  </article>
+  <article appCarteGraphique="Ancienneté des impayés" question="Commente l'ancienneté des impayés et dis-moi quels dossiers traiter en premier.">
+    <div class="zone" [appGraphique]="dessins()?.['anciennete']"></div>
+  </article>
+  <article appCarteGraphique="Encaissements attendus" question="Quels encaissements attendre sur les 6 prochains mois et quelle part est à risque ?">
+    <span class="legende"><i class="pastille-couleur s1"></i>sains <i class="pastille-couleur s4"></i>à risque</span>
+    <div class="zone" [appGraphique]="dessins()?.['encaissements']"></div>
+  </article>
+  <article appCarteGraphique="Encours par partenaire" question="Quel partenaire concentre le plus de risque et que recommandes-tu ?">
+    <span class="legende"><i class="pastille-couleur s2"></i>sain <i class="pastille-couleur s4"></i>en retard</span>
+    <div class="zone" [appGraphique]="dessins()?.['partenaires']"></div>
+  </article>
+  <article appCarteGraphique="Top 5 des dossiers à risque" question="Quels dossiers relancer en priorité ?">
+    <div class="zone zone-table">
+      @if (portefeuille.top5(); as top) {
+        <table class="top-risques">
+          <colgroup><col /><col class="c-num" /><col class="c-retard" /></colgroup>
+          <thead>
+            <tr><th>Dossier</th><th class="num">Impayé</th><th class="num">Jours</th></tr>
+          </thead>
+          <tbody>
+            @for (d of top; track d.id) {
+              <tr>
+                <td class="client">
+                  <i class="point-niveau niveau-{{ d.niveau | classeCss }}" [title]="'Niveau ' + d.niveau"></i>
+                  <button type="button" class="lien-contrat" [attr.data-contrat]="d.id" title="Ouvrir la fiche du contrat">{{ d.id }}</button>
+                  <span class="sous-ligne" [title]="d.client">{{ d.client }}</span>
+                </td>
+                <td class="num">{{ d.montant_impaye | compact }}</td>
+                <td class="num">{{ d.jours_retard }} j</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      } @else if (portefeuille.priorites.error()) {
+        Indisponible.
+      }
+    </div>
+  </article>
+</div>

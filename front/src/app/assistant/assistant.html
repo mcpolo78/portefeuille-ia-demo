@@ -1,0 +1,68 @@
+<div class="poignee-ia" role="separator" aria-orientation="vertical" tabindex="0"
+  aria-label="Largeur de l'assistant (flèches gauche et droite, double-clic pour rétablir)"
+  (pointerdown)="saisir($event)" (dblclick)="ui.reglerLargeur(null)" (keydown)="clavierPoignee($event)"></div>
+
+<header class="assistant-entete">
+  <div class="onglets" role="tablist">
+    <button type="button" role="tab" id="onglet-conversation" aria-controls="panneau-conversation"
+      [attr.aria-selected]="onglet() === 'conversation'" [tabIndex]="onglet() === 'conversation' ? 0 : -1"
+      (click)="onglet.set('conversation')" (keydown)="toucheOnglet($event)">Conversation</button>
+    <button type="button" role="tab" id="onglet-audit" aria-controls="panneau-audit"
+      [attr.aria-selected]="onglet() === 'audit'" [tabIndex]="onglet() === 'audit' ? 0 : -1"
+      (click)="onglet.set('audit')" (keydown)="toucheOnglet($event)">Piste d'audit <span class="compteur">{{ a.traces().length }}</span></button>
+  </div>
+  <button type="button" class="bouton-icone" aria-label="Fermer l'assistant" (click)="ui.fermerAssistant()">×</button>
+</header>
+
+<div role="tabpanel" class="panneau-conversation" id="panneau-conversation" aria-labelledby="onglet-conversation" [hidden]="onglet() !== 'conversation'">
+  <div class="fil" #fil aria-live="polite">
+    @for (m of a.messages(); track m.id) {
+      <div class="bulle {{ m.role }}" [attr.data-bulle]="m.id" [class.en-vol]="m.enVol" [class.arrivee]="m.arrivee" [class.secours]="m.secours">
+        @if (m.etapes.length) {
+          <ol class="etapes">
+            @for (e of m.etapes; track $index) {
+              <li [class]="e.etat">
+                <code>{{ e.outil }}</code> <span>{{ e.libelle }}</span>
+                @if (e.duree_ms !== undefined) { <span class="muet">{{ e.duree_ms | nombre }} ms</span> }
+              </li>
+            }
+          </ol>
+        }
+        @if (m.attente) {
+          <p class="attente">{{ m.attente }}<span>.</span><span>.</span><span>.</span></p>
+        }
+        @if (m.html) {
+          <div class="contenu" [innerHTML]="sur(m.html)"></div>
+        }
+      </div>
+    }
+  </div>
+  <div class="suggestions">
+    @for (s of suggestions; track s.texte) {
+      <button type="button" [disabled]="a.occupe()" (click)="a.poser(s.texte, s.secours)">{{ s.texte }}</button>
+    }
+  </div>
+  <form class="saisie" (submit)="envoyer($event)">
+    <label class="masque" for="question">Votre question</label>
+    <textarea id="question" #champ rows="2" maxlength="600" placeholder="Votre question sur le portefeuille…" required
+      [disabled]="a.occupe()" [value]="question()" (input)="question.set($any($event.target).value)" (keydown)="touche($event)"></textarea>
+    <button type="submit" class="bouton" [disabled]="a.occupe()">Envoyer</button>
+  </form>
+</div>
+
+<div role="tabpanel" class="panneau-audit" id="panneau-audit" aria-labelledby="onglet-audit" [hidden]="onglet() !== 'audit'">
+  <p class="muet petit">Chaque outil appelé par le modèle : arguments, résultat brut et durée.</p>
+  <ol class="journal">
+    @for (t of a.traces(); track $index) {
+      <li [class.echec]="t.ok === false">
+        <details>
+          <summary><span class="outil">{{ t.outil }}</span><span class="muet petit">{{ t.source }} · {{ t.duree_ms ?? 0 | nombre }} ms</span></summary>
+          <p class="petit">Arguments</p>
+          <pre>{{ t.arguments | json }}</pre>
+          <p class="petit">Résultat</p>
+          <pre>{{ t.resultat | json }}</pre>
+        </details>
+      </li>
+    }
+  </ol>
+</div>
