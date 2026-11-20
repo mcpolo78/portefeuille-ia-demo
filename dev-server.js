@@ -7,9 +7,10 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 const PORT = Number(process.env.PORT) || 3000;
-const RACINE = new URL('./front/dist/front/browser/', import.meta.url).pathname;
+const RACINE = fileURLToPath(new URL('./front/dist/front/browser/', import.meta.url));
 const ENTETES = JSON.parse(readFileSync(new URL('./vercel.json', import.meta.url))).headers[0].headers;
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json', '.png': 'image/png', '.txt': 'text/plain; charset=utf-8', '.ico': 'image/x-icon' };
 const API = { '/api/mcp': () => import('./api/mcp.js'), '/api/assistant': () => import('./api/assistant.js'), '/api/regles': () => import('./api/regles.js') };
