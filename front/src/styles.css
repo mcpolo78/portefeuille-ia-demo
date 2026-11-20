@@ -521,7 +521,10 @@ dialog.fermeture::backdrop { animation: fondu 0.22s ease reverse forwards; }
 @media (min-width: 761px) and (max-height: 800px) {
   .top-risques .sous-ligne { display: none; }
 }
-#liste-priorites td:last-child { white-space: normal; }
+.liste-priorites td:last-child { white-space: normal; }
+/* Angular : la sortie du routeur ne prend pas de place dans la colonne */
+.principal > router-outlet { display: none; }
+app-root { display: block; }
 @media (min-width: 761px) { .app { overflow: clip; } }
 
 /* Tableaux dans le fil : toujours dans la largeur de la colonne, jamais de défilement horizontal */

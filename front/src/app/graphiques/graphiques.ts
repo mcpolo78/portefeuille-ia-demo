@@ -1,38 +1,47 @@
-// Graphiques SVG faits main, sans bibliothèque : courbe, anneau, barres verticales et horizontales, sparkline.
-// Chaque graphique occupe exactement sa zone (taille mesurée) et se redessine quand la zone change de taille.
+// Graphiques SVG faits main, sans bibliothèque : courbe, anneau, barres verticales et horizontales.
+// Chaque graphique occupe exactement sa zone (taille mesurée) ; la directive appGraphique le redessine
+// quand ses données (signals) ou la taille de sa zone changent.
 // Couleurs par classes CSS (thème clair et sombre), infobulle commune au survol, clic optionnel.
 
-const NS = 'http://www.w3.org/2000/svg';
-const infobulle = document.getElementById('infobulle');
+export interface Point { label: string; y: number; projete?: boolean }
+export interface Part { label: string; valeur: number; classe: string }
+export interface Segment { v: number; classe?: string }
+export interface Barre { label: string; valeurs: Segment[]; etiquette?: string; infobulle: string; [cle: string]: unknown }
+type Format = (v: number) => string;
 
-function el(nom, attrs = {}, parent) {
+const NS = 'http://www.w3.org/2000/svg';
+const infobulle = () => document.getElementById('infobulle') as HTMLElement;
+
+function el(nom: string, attrs: Record<string, string | number | undefined | null> = {}, parent?: Element): SVGElement {
   const e = document.createElementNS(NS, nom);
-  for (const [k, v] of Object.entries(attrs)) if (v !== undefined && v !== null) e.setAttribute(k, v);
+  for (const [k, v] of Object.entries(attrs)) if (v !== undefined && v !== null) e.setAttribute(k, String(v));
   if (parent) parent.append(e);
   return e;
 }
-function texte(parent, x, y, contenu, attrs = {}) {
+function texte(parent: Element, x: number, y: number, contenu: string, attrs: Record<string, string | number> = {}) {
   const t = el('text', { x, y, ...attrs }, parent);
   t.textContent = contenu;
   return t;
 }
 
-export function montrerInfobulle(html, ev) {
-  infobulle.innerHTML = html;
-  infobulle.hidden = false;
-  const r = infobulle.getBoundingClientRect();
+export function montrerInfobulle(html: string, ev: PointerEvent) {
+  const bulle = infobulle();
+  bulle.innerHTML = html;
+  bulle.hidden = false;
+  const r = bulle.getBoundingClientRect();
   let x = ev.clientX + 14;
   let y = ev.clientY - r.height - 10;
   if (x + r.width > innerWidth - 8) x = ev.clientX - r.width - 14;
   if (y < 8) y = ev.clientY + 16;
-  infobulle.style.left = `${x}px`;
-  infobulle.style.top = `${y}px`;
+  bulle.style.left = `${x}px`;
+  bulle.style.top = `${y}px`;
 }
 export function cacherInfobulle() {
-  infobulle.hidden = true;
+  const bulle = infobulle();
+  if (bulle) bulle.hidden = true;
 }
-function survol(cible, html, clic) {
-  cible.addEventListener('pointermove', (ev) => montrerInfobulle(typeof html === 'function' ? html(ev) : html, ev));
+function survol(cible: Element, html: string, clic?: (ev: Event) => void) {
+  cible.addEventListener('pointermove', (ev) => montrerInfobulle(html, ev as PointerEvent));
   cible.addEventListener('pointerleave', cacherInfobulle);
   if (clic) {
     cible.classList.add('cliquable');
@@ -41,7 +50,7 @@ function survol(cible, html, clic) {
 }
 
 /** Nouveau SVG à la taille de la zone ; renvoie { svg, l, h }. */
-function toile(zone) {
+function toile(zone: HTMLElement) {
   zone.replaceChildren();
   const l = Math.max(120, zone.clientWidth);
   const h = Math.max(90, zone.clientHeight);
@@ -50,11 +59,11 @@ function toile(zone) {
 }
 
 /** Maximum « rond » et graduations pour un axe. */
-function echelle(max, n = 4) {
+function echelle(max: number, n = 4): { max: number; pas: number[] } {
   if (max <= 0) return { max: 1, pas: [0, 1] };
   const brut = max / n;
   const p = 10 ** Math.floor(Math.log10(brut));
-  const pas = [1, 2, 2.5, 5, 10].map((m) => m * p).find((s) => s >= brut);
+  const pas = [1, 2, 2.5, 5, 10].map((m) => m * p).find((s) => s >= brut)!;
   const haut = Math.ceil(max / pas) * pas;
   const graduations = [];
   for (let v = 0; v <= haut + 1e-9; v += pas) graduations.push(v);
@@ -62,7 +71,7 @@ function echelle(max, n = 4) {
 }
 
 /* ---------- Courbe (réalisé plein, projeté pointillé, repère « aujourd'hui ») ---------- */
-export function courbe(zone, points, { format, formatAxe, indexAuj, titre }) {
+export function courbe(zone: HTMLElement, points: Point[], { format, formatAxe, indexAuj, titre }: { format: Format; formatAxe: Format; indexAuj: number; titre?: string }) {
   const { svg, l, h } = toile(zone);
   if (titre) el('title', {}, svg).textContent = titre;
   const marge = { g: 46, d: 10, h: 10, b: 22 };
@@ -71,8 +80,8 @@ export function courbe(zone, points, { format, formatAxe, indexAuj, titre }) {
   const { max, pas } = echelle(Math.max(...valeurs));
   const bas = Math.max(0, Math.floor((min0 * 0.8) / pas[1]) * pas[1]);
   const ticks = pas.filter((v) => v >= bas);
-  const X = (i) => marge.g + (i / (points.length - 1)) * (l - marge.g - marge.d);
-  const Y = (v) => h - marge.b - ((v - bas) / (max - bas)) * (h - marge.h - marge.b);
+  const X = (i: number) => marge.g + (i / (points.length - 1)) * (l - marge.g - marge.d);
+  const Y = (v: number) => h - marge.b - ((v - bas) / (max - bas)) * (h - marge.h - marge.b);
 
   const axe = el('g', { class: 'axe' }, svg);
   for (const v of ticks) {
@@ -84,7 +93,7 @@ export function courbe(zone, points, { format, formatAxe, indexAuj, titre }) {
     if (i % pasEtiquettes === 0) texte(axe, X(i), h - 6, p.label, { 'text-anchor': 'middle' });
   });
 
-  const chemin = (de, a) => points.slice(de, a + 1).map((p, k) => `${k ? 'L' : 'M'}${X(de + k).toFixed(1)},${Y(p.y).toFixed(1)}`).join('');
+  const chemin = (de: number, a: number) => points.slice(de, a + 1).map((p, k) => `${k ? 'L' : 'M'}${X(de + k).toFixed(1)},${Y(p.y).toFixed(1)}`).join('');
   el('path', { d: `${chemin(0, indexAuj)}L${X(indexAuj)},${Y(bas)}L${X(0)},${Y(bas)}Z`, class: 'aire' }, svg);
   el('path', { d: chemin(0, indexAuj), class: 'courbe' }, svg);
   el('path', { d: chemin(indexAuj, points.length - 1), class: 'courbe projetee' }, svg);
@@ -99,16 +108,16 @@ export function courbe(zone, points, { format, formatAxe, indexAuj, titre }) {
     const bord = svg.getBoundingClientRect();
     const x = ((ev.clientX - bord.left) / bord.width) * l;
     const i = Math.max(0, Math.min(points.length - 1, Math.round(((x - marge.g) / (l - marge.g - marge.d)) * (points.length - 1))));
-    curseur.setAttribute('cx', X(i));
-    curseur.setAttribute('cy', Y(points[i].y));
+    curseur.setAttribute('cx', String(X(i)));
+    curseur.setAttribute('cy', String(Y(points[i].y)));
     curseur.setAttribute('visibility', 'visible');
-    montrerInfobulle(`<strong>${points[i].label}</strong> · ${format(points[i].y)}${points[i].projete ? ' (projeté)' : ''}`, ev);
+    montrerInfobulle(`<strong>${points[i].label}</strong> · ${format(points[i].y)}${points[i].projete ? ' (projeté)' : ''}`, ev as PointerEvent);
   });
   cible.addEventListener('pointerleave', () => { curseur.setAttribute('visibility', 'hidden'); cacherInfobulle(); });
 }
 
 /* ---------- Anneau avec légende ---------- */
-export function anneau(zone, parts, { format, centre, clic }) {
+export function anneau(zone: HTMLElement, parts: Part[], { format, centre, clic }: { format: Format; centre: { valeur: string; label: string }; clic?: (p: Part) => void }) {
   const { svg, l, h } = toile(zone);
   const total = parts.reduce((s, p) => s + p.valeur, 0) || 1;
   const legendeADroite = l > h * 1.35;
@@ -123,7 +132,7 @@ export function anneau(zone, parts, { format, centre, clic }) {
     const a = (p.valeur / total) * Math.PI * 2;
     const fin = angle + a - 0.0001;
     const grand = a > Math.PI ? 1 : 0;
-    const pt = (rr, t) => `${(cx + rr * Math.cos(t)).toFixed(2)},${(cy + rr * Math.sin(t)).toFixed(2)}`;
+    const pt = (rr: number, t: number) => `${(cx + rr * Math.cos(t)).toFixed(2)},${(cy + rr * Math.sin(t)).toFixed(2)}`;
     const d = `M${pt(R, angle)}A${R},${R} 0 ${grand} 1 ${pt(R, fin)}L${pt(r, fin)}A${r},${r} 0 ${grand} 0 ${pt(r, angle)}Z`;
     const seg = el('path', { d, class: `segment ${p.classe}` }, svg);
     survol(seg, `<strong>${p.label}</strong> · ${format(p.valeur)} (${Math.round((p.valeur / total) * 100)} %)`, clic && (() => clic(p)));
@@ -152,12 +161,12 @@ export function anneau(zone, parts, { format, centre, clic }) {
 }
 
 /* ---------- Barres verticales empilées ---------- */
-export function barres(zone, items, { format, formatAxe, clic, classeDe }) {
+export function barres(zone: HTMLElement, items: Barre[], { formatAxe, clic, classeDe }: { format?: Format; formatAxe: Format; clic?: (it: Barre) => void; classeDe?: (i: number, k: number) => string }) {
   const { svg, l, h } = toile(zone);
   const marge = { g: 42, d: 6, h: 16, b: 22 };
   const totaux = items.map((it) => it.valeurs.reduce((s, v) => s + v.v, 0));
   const { max, pas } = echelle(Math.max(...totaux, 1));
-  const Y = (v) => h - marge.b - (v / max) * (h - marge.h - marge.b);
+  const Y = (v: number) => h - marge.b - (v / max) * (h - marge.h - marge.b);
   const axe = el('g', { class: 'axe' }, svg);
   for (const v of pas) {
     el('line', { x1: marge.g, x2: l - marge.d, y1: Y(v), y2: Y(v), class: 'ligne-grille' }, axe);
@@ -182,7 +191,7 @@ export function barres(zone, items, { format, formatAxe, clic, classeDe }) {
 }
 
 /* ---------- Barres horizontales empilées ---------- */
-export function barresH(zone, items, { format, clic }) {
+export function barresH(zone: HTMLElement, items: Barre[], { format, clic }: { format: Format; clic?: (it: Barre) => void }) {
   const { svg, l, h } = toile(zone);
   const totaux = items.map((it) => it.valeurs.reduce((s, v) => s + v.v, 0));
   const max = Math.max(...totaux, 1);
@@ -202,20 +211,4 @@ export function barresH(zone, items, { format, clic }) {
     texte(g, x + 6, y0 + 16 + eb - 2, format(totaux[i]), { class: 'etiquette' });
     survol(g, it.infobulle, clic && (() => clic(it)));
   });
-}
-
-/* ---------- Sparkline ---------- */
-export function sparkline(svg, valeurs) {
-  svg.replaceChildren();
-  const l = 100;
-  const h = 30;
-  svg.setAttribute('viewBox', `0 0 ${l} ${h}`);
-  svg.setAttribute('preserveAspectRatio', 'none');
-  const min = Math.min(...valeurs);
-  const max = Math.max(...valeurs);
-  const Y = (v) => h - 2 - ((v - min) / (max - min || 1)) * (h - 4);
-  const X = (i) => (i / (valeurs.length - 1)) * l;
-  const d = valeurs.map((v, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join('');
-  el('path', { d: `${d}L${l},${h}L0,${h}Z`, class: 'spark-aire' }, svg);
-  el('path', { d, class: 'spark', 'vector-effect': 'non-scaling-stroke' }, svg);
 }

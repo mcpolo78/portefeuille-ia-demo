@@ -1,0 +1,39 @@
+@let d = donnees.value();
+<div class="fiche-entete">
+  <h2 id="fiche-titre">
+    {{ fiche.id() }}
+    @if (d) { <span class="statut statut-{{ d.c.statut | classeCss }}">{{ d.c.statut }}</span> }
+  </h2>
+  <button type="button" class="bouton-icone" aria-label="Fermer la fiche" (click)="fermer()">×</button>
+</div>
+<div>
+  @if (donnees.isLoading()) {
+    <p class="muet">Chargement de la fiche…</p>
+  } @else if (donnees.error(); as e) {
+    <p>{{ $any(e).message }}</p>
+  } @else if (d) {
+    <dl class="cles fiche-cles">
+      @for (l of lignes(); track l[0]) { <dt>{{ l[0] }}</dt><dd>{{ l[1] }}</dd> }
+    </dl>
+    <h3>Échéancier</h3>
+    <div class="table-defile">
+      <table class="echeancier">
+        <thead><tr><th>N°</th><th>Date</th><th>Loyer</th><th>Intérêts</th><th>Capital</th><th>Restant dû</th><th>État</th></tr></thead>
+        <tbody>
+          @for (l of d.echeances; track l.numero) {
+            <tr class="etat-{{ ETATS[l.etat] }}">
+              <td>{{ l.numero }}</td><td>{{ l.date | dateFr }}</td><td>{{ l.loyer | euros: true }}</td><td>{{ l.interets | euros: true }}</td>
+              <td>{{ l.capital | euros: true }}</td><td>{{ l.capital_restant_du | euros: true }}</td><td><span class="etat">{{ l.etat }}</span></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    @if (d.c.statut !== 'soldé') {
+      <div class="fiche-actions">
+        <button type="button" class="bouton" [disabled]="assistant.occupe()" (click)="demander('Simule un étalement du contrat ' + d.c.id + ' sur 24 mois restants.')">Simuler un étalement sur 24 mois</button>
+        <button type="button" class="bouton secondaire" [disabled]="assistant.occupe()" (click)="demander('Que recommandes-tu pour le contrat ' + d.c.id + ' ?')">Demander une recommandation</button>
+      </div>
+    }
+  }
+</div>
